@@ -6,11 +6,16 @@
 <title>框选QQ消息区域</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { background: #000; overflow: hidden; height: 100vh; width: 100vw; }
+body { background: #000; height: 100vh; display: flex; align-items: center; justify-content: center; }
+#countdown {
+    text-align: center; color: #fff; font-family: 'Microsoft YaHei', sans-serif;
+}
+#countdown h1 { font-size: 60px; color: #FFD700; margin: 20px 0; }
+#countdown p { font-size: 18px; color: #ccc; margin: 10px 0; }
 #toolbar {
     position: fixed; top: 0; left: 0; right: 0;
     background: #1a1a1a; color: #fff; padding: 10px 20px;
-    display: flex; align-items: center; gap: 16px;
+    display: none; align-items: center; gap: 16px;
     z-index: 100; font-family: 'Microsoft YaHei', sans-serif;
 }
 #toolbar .hint { color: #FFD700; font-weight: bold; font-size: 14px; flex: 1; }
@@ -21,12 +26,20 @@ body { background: #000; overflow: hidden; height: 100vh; width: 100vw; }
 .btn-ok { background: #4caf50; color: #fff; }
 .btn-cancel { background: #555; color: #fff; }
 #pos { color: #0f0; font-family: Consolas, monospace; font-size: 13px; min-width: 200px; }
-#img-wrap { display: flex; justify-content: center; align-items: flex-start; padding-top: 50px; }
+#img-wrap { display: none; justify-content: center; align-items: flex-start; padding-top: 50px; }
 #img-wrap img { cursor: crosshair; user-select: none; -webkit-user-select: none; display: block; }
 #box { position: absolute; border: 3px dashed #ff4444; background: rgba(255,68,68,.12); pointer-events: none; display: none; z-index: 10; }
 </style>
 </head>
 <body>
+
+<div id="countdown">
+    <p>即将截取全屏，请立即切换到</p>
+    <h1 id="timer">5</h1>
+    <p>把浏览器最小化，让 QQ 群窗口显示在前面</p>
+    <p style="color:#888;font-size:14px;margin-top:20px">（截图后回到本页面框选区域）</p>
+</div>
+
 <div id="toolbar">
     <span class="hint">拖拽鼠标框选 QQ 群消息区域</span>
     <span id="pos">未选择</span>
@@ -41,62 +54,84 @@ body { background: #000; overflow: hidden; height: 100vh; width: 100vw; }
 </div>
 
 <script>
-let scale = 1, dragStart = null, boxEl, imgEl;
+let scale = 1, dragStart = null;
 
-async function init() {
-    boxEl = document.getElementById('box');
-    imgEl = document.getElementById('screenshot');
-    const posEl = document.getElementById('pos');
+// Countdown then capture
+let sec = 5;
+document.getElementById('timer').textContent = sec;
+let cd = setInterval(() => {
+    sec--;
+    document.getElementById('timer').textContent = sec;
+    if (sec <= 0) {
+        clearInterval(cd);
+        takeScreenshot();
+    }
+}, 1000);
+
+async function takeScreenshot() {
+    document.getElementById('countdown').style.display = 'none';
 
     try {
         const r = await fetch('/api/screenshot');
         const d = await r.json();
-        if (!d.ok) { alert('截图失败，请重试'); return; }
-        imgEl.src = d.image;
-        scale = d.scale;
+        if (!d.ok) {
+            document.getElementById('countdown').style.display = 'block';
+            document.getElementById('timer').textContent = '截图失败，刷新重试';
+            return;
+        }
 
-        imgEl.onmousedown = function(e) {
-            e.preventDefault();
-            const r = imgEl.getBoundingClientRect();
-            dragStart = { x: e.clientX - r.left, y: e.clientY - r.top };
-            boxEl.style.left = dragStart.x + 'px';
-            boxEl.style.top = dragStart.y + 'px';
-            boxEl.style.width = '0px';
-            boxEl.style.height = '0px';
-            boxEl.style.display = 'block';
+        scale = d.scale;
+        const img = document.getElementById('screenshot');
+        img.src = d.image;
+        img.onload = function() {
+            document.getElementById('toolbar').style.display = 'flex';
+            document.getElementById('img-wrap').style.display = 'flex';
         };
 
-        imgEl.onmousemove = function(e) {
+        const box = document.getElementById('box');
+        const posEl = document.getElementById('pos');
+
+        img.onmousedown = function(e) {
+            e.preventDefault();
+            const r = img.getBoundingClientRect();
+            dragStart = { x: e.clientX - r.left, y: e.clientY - r.top };
+            box.style.left = dragStart.x + 'px';
+            box.style.top = dragStart.y + 'px';
+            box.style.width = '0px';
+            box.style.height = '0px';
+            box.style.display = 'block';
+        };
+
+        img.onmousemove = function(e) {
             if (!dragStart) return;
             e.preventDefault();
-            const r = imgEl.getBoundingClientRect();
+            const r = img.getBoundingClientRect();
             const x = e.clientX - r.left, y = e.clientY - r.top;
             const left = Math.min(dragStart.x, x);
             const top = Math.min(dragStart.y, y);
             const w = Math.abs(x - dragStart.x);
             const h = Math.abs(y - dragStart.y);
-            boxEl.style.left = left + 'px';
-            boxEl.style.top = top + 'px';
-            boxEl.style.width = w + 'px';
-            boxEl.style.height = h + 'px';
+            box.style.left = left + 'px';
+            box.style.top = top + 'px';
+            box.style.width = w + 'px';
+            box.style.height = h + 'px';
             posEl.textContent = `X:${Math.round(left/scale)} Y:${Math.round(top/scale)} W:${Math.round(w/scale)} H:${Math.round(h/scale)}`;
         };
-
-        imgEl.onmouseup = function() {};
     } catch(e) {
         alert('截图失败: ' + e.message);
     }
 }
 
 async function confirmSelection() {
-    if (!boxEl || boxEl.style.display === 'none') {
+    const box = document.getElementById('box');
+    if (!box || box.style.display === 'none') {
         alert('请先在截图上拖拽框选区域');
         return;
     }
-    const left = parseInt(boxEl.style.left);
-    const top = parseInt(boxEl.style.top);
-    const w = parseInt(boxEl.style.width);
-    const h = parseInt(boxEl.style.height);
+    const left = parseInt(box.style.left);
+    const top = parseInt(box.style.top);
+    const w = parseInt(box.style.width);
+    const h = parseInt(box.style.height);
     if (w < 20 || h < 20) {
         alert('框选区域太小，请重新选择');
         return;
@@ -112,11 +147,9 @@ async function confirmSelection() {
               ' 宽:' + d.region.width + ' 高:' + d.region.height);
         window.location.href = '/';
     } else {
-        alert('保存失败: ' + (d.error || '未知错误'));
+        alert('保存失败');
     }
 }
-
-window.onload = init;
 </script>
 </body>
 </html>
