@@ -267,7 +267,7 @@ async function selectRegion() {
 function confirmRegion() {
     const box = regionBoxEl;
     const overlay = document.getElementById('region-overlay');
-    if (box.style.display === 'none' || !regionDragStart) {
+    if (!box || box.style.display === 'none') {
         alert('请先在截图上拖拽框选区域');
         return;
     }
@@ -333,7 +333,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     img.addEventListener('mouseup', function(e) {
-        regionDragStart = null;
+        // Keep regionDragStart so confirmRegion can validate
     });
 });
 
