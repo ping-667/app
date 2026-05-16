@@ -299,11 +299,9 @@ def api_monitor_status():
 @app.route('/api/region/select', methods=['POST'])
 @login_required
 def api_region_select():
-    import subprocess
     import tempfile
 
     tmpfile = os.path.join(tempfile.gettempdir(), 'qq_monitor_region.json')
-    # Clear previous result
     try:
         os.remove(tmpfile)
     except OSError:
@@ -311,24 +309,21 @@ def api_region_select():
 
     script = os.path.join(os.path.dirname(__file__), 'select_region.py')
     try:
-        subprocess.run(
-            [sys.executable, script],
-            timeout=120,
-            cwd=os.path.dirname(__file__),
-            # Don't capture_output — let Tkinter connect to desktop
-        )
-        if os.path.exists(tmpfile):
-            with open(tmpfile, 'r', encoding='utf-8') as f:
-                content = f.read().strip()
-            if content and content != 'null':
-                region = json.loads(content)
-                cfg = db.get_user_config(session['user_id'])
-                cfg['region'] = region
-                db.save_user_config(session['user_id'], cfg)
-                return jsonify({'ok': True, 'region': region})
-        return jsonify({'ok': False, 'error': '未选择区域或操作取消'})
-    except subprocess.TimeoutExpired:
-        return jsonify({'ok': False, 'error': '操作超时'})
+        os.startfile(script)
+        # Poll for result (max 60 seconds)
+        for _ in range(120):
+            time.sleep(0.5)
+            if os.path.exists(tmpfile):
+                with open(tmpfile, 'r', encoding='utf-8') as f:
+                    content = f.read().strip()
+                if content and content != 'null':
+                    region = json.loads(content)
+                    cfg = db.get_user_config(session['user_id'])
+                    cfg['region'] = region
+                    db.save_user_config(session['user_id'], cfg)
+                    os.remove(tmpfile)
+                    return jsonify({'ok': True, 'region': region})
+        return jsonify({'ok': False, 'error': '等待超时，请重试'})
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)})
 
