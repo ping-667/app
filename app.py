@@ -296,6 +296,30 @@ def api_monitor_status():
 
 # ---- Region select API ----
 
+@app.route('/api/region/select', methods=['POST'])
+@login_required
+def api_region_select():
+    import subprocess
+    script = os.path.join(os.path.dirname(__file__), 'select_region.py')
+    try:
+        result = subprocess.run(
+            [sys.executable, script],
+            capture_output=True, text=True, timeout=120,
+            cwd=os.path.dirname(__file__),
+        )
+        output = result.stdout.strip()
+        if output and output != 'null':
+            region = json.loads(output)
+            cfg = db.get_user_config(session['user_id'])
+            cfg['region'] = region
+            db.save_user_config(session['user_id'], cfg)
+            return jsonify({'ok': True, 'region': region})
+        return jsonify({'ok': False, 'error': '未选择区域'})
+    except subprocess.TimeoutExpired:
+        return jsonify({'ok': False, 'error': '操作超时'})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)})
+
 @app.route('/api/region/set', methods=['POST'])
 @login_required
 def api_region_set():

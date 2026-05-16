@@ -229,64 +229,21 @@ async function pollMonitorStatus() {
 
 // ---- Region Select ----
 async function selectRegion() {
-    const overlay = document.getElementById('region-overlay');
-    const rect = document.getElementById('region-rect');
-    const label = document.getElementById('region-label');
-
-    overlay.style.display = 'block';
-    rect.style.display = 'none';
-    label.style.display = 'none';
-
-    overlay.onmousedown = function(e) {
-        regionStart = { x: e.clientX, y: e.clientY };
-        rect.style.display = 'block';
-        rect.style.left = e.clientX + 'px';
-        rect.style.top = e.clientY + 'px';
-        rect.style.width = '0';
-        rect.style.height = '0';
-        label.style.display = 'block';
-    };
-
-    overlay.onmousemove = function(e) {
-        if (!regionStart) return;
-        const left = Math.min(regionStart.x, e.clientX);
-        const top = Math.min(regionStart.y, e.clientY);
-        const w = Math.abs(e.clientX - regionStart.x);
-        const h = Math.abs(e.clientY - regionStart.y);
-        rect.style.left = left + 'px';
-        rect.style.top = top + 'px';
-        rect.style.width = w + 'px';
-        rect.style.height = h + 'px';
-        label.style.left = left + 'px';
-        label.style.top = (top - 24) + 'px';
-        label.textContent = `${left},${top} ${w}x${h}`;
-        regionEnd = { left, top, width: w, height: h };
-    };
-
-    overlay.onmouseup = async function() {
-        if (regionEnd && regionEnd.width > 20 && regionEnd.height > 20) {
-            await fetch('/api/region/set', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(regionEnd),
-            });
-            loadConfig();
+    const ri = document.getElementById('region-info');
+    ri.textContent = '正在启动框选工具... 切换到桌面框选QQ窗口';
+    try {
+        const r = await fetch('/api/region/select', { method: 'POST' });
+        const d = await r.json();
+        if (d.ok && d.region) {
+            ri.textContent = `左:${d.region.left} 上:${d.region.top} 宽:${d.region.width} 高:${d.region.height}`;
+        } else if (d.error) {
+            ri.textContent = '框选取消或失败: ' + d.error;
+        } else {
+            ri.textContent = '框选取消';
         }
-        regionStart = null;
-        regionEnd = null;
-        overlay.style.display = 'none';
-    };
-
-    overlay.onkeydown = function(e) {
-        if (e.key === 'Escape') {
-            regionStart = null;
-            regionEnd = null;
-            overlay.style.display = 'none';
-        }
-    };
-    overlay.focus();
-    overlay.tabIndex = 0;
-    overlay.focus();
+    } catch (e) {
+        ri.textContent = '框选出错: ' + e.message;
+    }
 }
 
 // ---- Utils ----
