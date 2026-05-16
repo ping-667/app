@@ -302,46 +302,44 @@ def api_monitor_status():
 
 # ---- Region select API ----
 
-@app.route('/api/screenshot', methods=['GET'])
+@app.route('/api/region/preview', methods=['POST'])
 @login_required
-def api_screenshot():
-    import base64
+def api_region_preview():
+    import base64, io
     import mss
-    with mss.mss() as sct:
-        monitor = sct.monitors[1]  # primary monitor
-        img = sct.grab(monitor)
-        from PIL import Image
-        pil_img = Image.frombytes('RGB', img.size, img.rgb)
-        # Resize if too large for browser
-        max_w, max_h = 1920, 1080
-        if pil_img.width > max_w or pil_img.height > max_h:
-            ratio = min(max_w / pil_img.width, max_h / pil_img.height)
-            new_w, new_h = int(pil_img.width * ratio), int(pil_img.height * ratio)
-            pil_img = pil_img.resize((new_w, new_h))
-        import io
-        buf = io.BytesIO()
-        pil_img.save(buf, format='JPEG', quality=85)
-        b64 = base64.b64encode(buf.getvalue()).decode()
-        return jsonify({
-            'ok': True,
-            'image': f'data:image/jpeg;base64,{b64}',
-            'width': pil_img.width,
-            'height': pil_img.height,
-            'orig_width': img.width,
-            'orig_height': img.height,
-            'scale': pil_img.width / img.width,
-        })
+    from PIL import Image
+    data = request.get_json()
+    region = {
+        'left': int(data.get('left', 0)),
+        'top': int(data.get('top', 0)),
+        'width': int(data.get('width', 600)),
+        'height': int(data.get('height', 400)),
+    }
+    try:
+        with mss.mss() as sct:
+            img = sct.grab(region)
+            pil_img = Image.frombytes('RGB', img.size, img.rgb)
+            buf = io.BytesIO()
+            pil_img.save(buf, format='JPEG', quality=90)
+            b64 = base64.b64encode(buf.getvalue()).decode()
+            return jsonify({
+                'ok': True,
+                'image': f'data:image/jpeg;base64,{b64}',
+                'width': pil_img.width,
+                'height': pil_img.height,
+            })
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)})
 
 @app.route('/api/region/set', methods=['POST'])
 @login_required
 def api_region_set():
     data = request.get_json()
-    scale = data.get('scale', 1.0)
     region = {
-        'left': int(data.get('left', 0) / scale),
-        'top': int(data.get('top', 0) / scale),
-        'width': int(data.get('width', 800) / scale),
-        'height': int(data.get('height', 600) / scale),
+        'left': int(data.get('left', 0)),
+        'top': int(data.get('top', 0)),
+        'width': int(data.get('width', 600)),
+        'height': int(data.get('height', 400)),
     }
     cfg = db.get_user_config(session['user_id'])
     cfg['region'] = region
