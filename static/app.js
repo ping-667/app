@@ -229,7 +229,7 @@ async function pollMonitorStatus() {
 
 // ---- Region Select ----
 function selectRegion() {
-    window.open('/region', 'regionSelect', 'width=1200,height=800');
+    window.location.href = '/region';
 }
 
 // ---- Utils ----

@@ -35,7 +35,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-app.secret_key = os.urandom(24).hex()
+app.secret_key = 'qq_monitor_fixed_secret_key_2026'  # Fixed so sessions survive restarts
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # Disable caching for dev
 
 from database import Database
 from ocr_engine import OCREngine

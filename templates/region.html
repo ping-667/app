@@ -31,7 +31,7 @@ body { background: #000; overflow: hidden; height: 100vh; width: 100vw; }
     <span class="hint">拖拽鼠标框选 QQ 群消息区域</span>
     <span id="pos">未选择</span>
     <button class="btn-ok" onclick="confirmSelection()">确认选择</button>
-    <button class="btn-cancel" onclick="window.close()">取消</button>
+    <button class="btn-cancel" onclick="window.location.href='/'">取消</button>
 </div>
 <div id="img-wrap">
     <div style="position:relative;display:inline-block;margin-top:50px">
@@ -108,12 +108,9 @@ async function confirmSelection() {
     });
     const d = await r.json();
     if (d.ok) {
-        if (window.opener && !window.opener.closed) {
-            window.opener.location.reload();
-        }
         alert('区域已保存！\n左:' + d.region.left + ' 上:' + d.region.top +
               ' 宽:' + d.region.width + ' 高:' + d.region.height);
-        window.close();
+        window.location.href = '/';
     } else {
         alert('保存失败: ' + (d.error || '未知错误'));
     }
