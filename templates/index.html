@@ -123,22 +123,6 @@
         </div>
     </div>
 
-    <!-- 截图框选覆盖层 -->
-    <div id="region-overlay" class="region-overlay" style="display:none">
-        <div class="region-overlay-toolbar">
-            <span style="color:#FFD700;font-weight:bold">拖拽鼠标框选 QQ 消息区域</span>
-            <button class="btn btn-primary btn-sm" onclick="confirmRegion()">确认选择</button>
-            <button class="btn btn-sm" onclick="cancelRegion()">取消</button>
-            <span id="region-pos" style="color:#0f0;font-family:Consolas;font-size:13px"></span>
-        </div>
-        <div id="region-container" style="position:relative;flex:1;overflow:auto;display:flex;align-items:flex-start;justify-content:center">
-            <div style="position:relative;display:inline-block">
-                <img id="region-img" style="display:block;max-width:none" draggable="false">
-                <div id="region-box" style="position:absolute;border:3px dashed #f00;background:rgba(255,0,0,.08);display:none;pointer-events:none"></div>
-            </div>
-        </div>
-    </div>
-
     <script src="/static/app.js"></script>
 </body>
 </html>

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>框选QQ消息区域</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #000; overflow: hidden; height: 100vh; width: 100vw; }
+#toolbar {
+    position: fixed; top: 0; left: 0; right: 0;
+    background: #1a1a1a; color: #fff; padding: 10px 20px;
+    display: flex; align-items: center; gap: 16px;
+    z-index: 100; font-family: 'Microsoft YaHei', sans-serif;
+}
+#toolbar .hint { color: #FFD700; font-weight: bold; font-size: 14px; flex: 1; }
+#toolbar button {
+    padding: 8px 20px; border: none; border-radius: 6px;
+    font-size: 14px; cursor: pointer;
+}
+.btn-ok { background: #4caf50; color: #fff; }
+.btn-cancel { background: #555; color: #fff; }
+#pos { color: #0f0; font-family: Consolas, monospace; font-size: 13px; min-width: 200px; }
+#img-wrap { display: flex; justify-content: center; align-items: flex-start; padding-top: 50px; }
+#img-wrap img { cursor: crosshair; user-select: none; -webkit-user-select: none; display: block; }
+#box { position: absolute; border: 3px dashed #ff4444; background: rgba(255,68,68,.12); pointer-events: none; display: none; z-index: 10; }
+</style>
+</head>
+<body>
+<div id="toolbar">
+    <span class="hint">拖拽鼠标框选 QQ 群消息区域</span>
+    <span id="pos">未选择</span>
+    <button class="btn-ok" onclick="confirmSelection()">确认选择</button>
+    <button class="btn-cancel" onclick="window.close()">取消</button>
+</div>
+<div id="img-wrap">
+    <div style="position:relative;display:inline-block;margin-top:50px">
+        <img id="screenshot" draggable="false">
+        <div id="box"></div>
+    </div>
+</div>
+
+<script>
+let scale = 1, dragStart = null, boxEl, imgEl;
+
+async function init() {
+    boxEl = document.getElementById('box');
+    imgEl = document.getElementById('screenshot');
+    const posEl = document.getElementById('pos');
+
+    try {
+        const r = await fetch('/api/screenshot');
+        const d = await r.json();
+        if (!d.ok) { alert('截图失败，请重试'); return; }
+        imgEl.src = d.image;
+        scale = d.scale;
+
+        imgEl.onmousedown = function(e) {
+            e.preventDefault();
+            const r = imgEl.getBoundingClientRect();
+            dragStart = { x: e.clientX - r.left, y: e.clientY - r.top };
+            boxEl.style.left = dragStart.x + 'px';
+            boxEl.style.top = dragStart.y + 'px';
+            boxEl.style.width = '0px';
+            boxEl.style.height = '0px';
+            boxEl.style.display = 'block';
+        };
+
+        imgEl.onmousemove = function(e) {
+            if (!dragStart) return;
+            e.preventDefault();
+            const r = imgEl.getBoundingClientRect();
+            const x = e.clientX - r.left, y = e.clientY - r.top;
+            const left = Math.min(dragStart.x, x);
+            const top = Math.min(dragStart.y, y);
+            const w = Math.abs(x - dragStart.x);
+            const h = Math.abs(y - dragStart.y);
+            boxEl.style.left = left + 'px';
+            boxEl.style.top = top + 'px';
+            boxEl.style.width = w + 'px';
+            boxEl.style.height = h + 'px';
+            posEl.textContent = `X:${Math.round(left/scale)} Y:${Math.round(top/scale)} W:${Math.round(w/scale)} H:${Math.round(h/scale)}`;
+        };
+
+        imgEl.onmouseup = function() {};
+    } catch(e) {
+        alert('截图失败: ' + e.message);
+    }
+}
+
+async function confirmSelection() {
+    if (!boxEl || boxEl.style.display === 'none') {
+        alert('请先在截图上拖拽框选区域');
+        return;
+    }
+    const left = parseInt(boxEl.style.left);
+    const top = parseInt(boxEl.style.top);
+    const w = parseInt(boxEl.style.width);
+    const h = parseInt(boxEl.style.height);
+    if (w < 20 || h < 20) {
+        alert('框选区域太小，请重新选择');
+        return;
+    }
+    const r = await fetch('/api/region/set', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({left, top, width: w, height: h, scale}),
+    });
+    const d = await r.json();
+    if (d.ok) {
+        if (window.opener && !window.opener.closed) {
+            window.opener.location.reload();
+        }
+        alert('区域已保存！\n左:' + d.region.left + ' 上:' + d.region.top +
+              ' 宽:' + d.region.width + ' 高:' + d.region.height);
+        window.close();
+    } else {
+        alert('保存失败: ' + (d.error || '未知错误'));
+    }
+}
+
+window.onload = init;
+</script>
+</body>
+</html>

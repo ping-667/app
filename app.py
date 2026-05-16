@@ -70,6 +70,11 @@ def login_page():
 def index():
     return render_template('index.html')
 
+@app.route('/region')
+@login_required
+def region_page():
+    return render_template('region.html')
+
 # ---- Auth API ----
 
 @app.route('/api/login', methods=['POST'])
