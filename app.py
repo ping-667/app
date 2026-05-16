@@ -296,51 +296,51 @@ def api_monitor_status():
 
 # ---- Region select API ----
 
-@app.route('/api/region/select', methods=['POST'])
+@app.route('/api/screenshot', methods=['GET'])
 @login_required
-def api_region_select():
-    import tempfile
-
-    tmpfile = os.path.join(tempfile.gettempdir(), 'qq_monitor_region.json')
-    try:
-        os.remove(tmpfile)
-    except OSError:
-        pass
-
-    script = os.path.join(os.path.dirname(__file__), 'select_region.py')
-    try:
-        os.startfile(script)
-        # Poll for result (max 60 seconds)
-        for _ in range(120):
-            time.sleep(0.5)
-            if os.path.exists(tmpfile):
-                with open(tmpfile, 'r', encoding='utf-8') as f:
-                    content = f.read().strip()
-                if content and content != 'null':
-                    region = json.loads(content)
-                    cfg = db.get_user_config(session['user_id'])
-                    cfg['region'] = region
-                    db.save_user_config(session['user_id'], cfg)
-                    os.remove(tmpfile)
-                    return jsonify({'ok': True, 'region': region})
-        return jsonify({'ok': False, 'error': '等待超时，请重试'})
-    except Exception as e:
-        return jsonify({'ok': False, 'error': str(e)})
+def api_screenshot():
+    import base64
+    import mss
+    with mss.mss() as sct:
+        monitor = sct.monitors[1]  # primary monitor
+        img = sct.grab(monitor)
+        from PIL import Image
+        pil_img = Image.frombytes('RGB', img.size, img.rgb)
+        # Resize if too large for browser
+        max_w, max_h = 1920, 1080
+        if pil_img.width > max_w or pil_img.height > max_h:
+            ratio = min(max_w / pil_img.width, max_h / pil_img.height)
+            new_w, new_h = int(pil_img.width * ratio), int(pil_img.height * ratio)
+            pil_img = pil_img.resize((new_w, new_h))
+        import io
+        buf = io.BytesIO()
+        pil_img.save(buf, format='JPEG', quality=85)
+        b64 = base64.b64encode(buf.getvalue()).decode()
+        return jsonify({
+            'ok': True,
+            'image': f'data:image/jpeg;base64,{b64}',
+            'width': pil_img.width,
+            'height': pil_img.height,
+            'orig_width': img.width,
+            'orig_height': img.height,
+            'scale': pil_img.width / img.width,
+        })
 
 @app.route('/api/region/set', methods=['POST'])
 @login_required
 def api_region_set():
     data = request.get_json()
+    scale = data.get('scale', 1.0)
     region = {
-        'left': int(data.get('left', 0)),
-        'top': int(data.get('top', 0)),
-        'width': int(data.get('width', 800)),
-        'height': int(data.get('height', 600)),
+        'left': int(data.get('left', 0) / scale),
+        'top': int(data.get('top', 0) / scale),
+        'width': int(data.get('width', 800) / scale),
+        'height': int(data.get('height', 600) / scale),
     }
     cfg = db.get_user_config(session['user_id'])
     cfg['region'] = region
     db.save_user_config(session['user_id'], cfg)
-    return jsonify({'ok': True})
+    return jsonify({'ok': True, 'region': region})
 
 # ---- Export API ----
 
