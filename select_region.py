@@ -1,12 +1,13 @@
 import tkinter as tk
 import json
-import sys
+import os
+import tempfile
 
 
 class RegionSelector:
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title('框选QQ消息区域 - 拖拽鼠标选择后按 Enter 确认')
+        self.root.title('框选QQ消息区域')
         self.root.attributes('-fullscreen', True)
         self.root.attributes('-alpha', 0.3)
         self.root.attributes('-topmost', True)
@@ -21,20 +22,21 @@ class RegionSelector:
         self.label_id = None
         self.result = None
 
-        hint_id = self.canvas.create_text(
-            self.root.winfo_screenwidth() // 2, 40,
-            text='拖拽鼠标框选 QQ 聊天消息区域 | Enter 确认 | Esc 取消',
+        sw = self.root.winfo_screenwidth()
+        self.canvas.create_text(
+            sw // 2, 40,
+            text='拖拽鼠标框选 QQ 群聊天消息区域 | 按 Enter 确认 | 按 Esc 取消',
             fill='#FFD700', font=('Microsoft YaHei', 16, 'bold'),
             anchor='n',
         )
 
         self.canvas.bind('<ButtonPress-1>', self._on_press)
         self.canvas.bind('<B1-Motion>', self._on_drag)
-        self.canvas.bind('<ButtonRelease-1>', self._on_release)
         self.root.bind('<Escape>', self._on_cancel)
         self.root.bind('<Return>', self._on_confirm)
 
     def run(self):
+        self.root.focus_force()
         self.root.mainloop()
         return self.result
 
@@ -49,8 +51,8 @@ class RegionSelector:
         if self.label_id:
             self.canvas.delete(self.label_id)
         self.label_id = self.canvas.create_text(
-            event.x + 80, event.y - 25,
-            text='', fill='#FF4444', font=('Consolas', 12, 'bold'),
+            event.x + 90, event.y - 30,
+            text='', fill='#00FF00', font=('Consolas', 12, 'bold'),
             anchor='nw',
         )
 
@@ -63,14 +65,11 @@ class RegionSelector:
         w = abs(event.x - self.start_x)
         h = abs(event.y - self.start_y)
         if self.label_id:
-            self.canvas.coords(self.label_id, left, top - 30)
+            self.canvas.coords(self.label_id, left, top - 35)
             self.canvas.itemconfig(
                 self.label_id,
-                text=f'X:{left} Y:{top}  宽:{w} 高:{h}',
+                text=f'X:{left}  Y:{top}   宽:{w}  高:{h}',
             )
-
-    def _on_release(self, event):
-        pass
 
     def _on_confirm(self, event):
         if self.start_x is not None and self.rect_id:
@@ -94,9 +93,17 @@ if __name__ == '__main__':
         ctypes.windll.shcore.SetProcessDpiAwareness(1)
     except Exception:
         pass
+
     selector = RegionSelector()
     result = selector.run()
+
+    # Write result to temp file
+    outfile = os.path.join(tempfile.gettempdir(), 'qq_monitor_region.json')
     if result:
+        with open(outfile, 'w', encoding='utf-8') as f:
+            json.dump(result, f)
         print(json.dumps(result, ensure_ascii=False))
     else:
+        with open(outfile, 'w') as f:
+            f.write('null')
         print('null')
