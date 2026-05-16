@@ -17,6 +17,7 @@ class Monitor:
         self.ocr = ocr_engine
         self.detector = detector
         self.db = db
+        self.user_id = 0
         self._running = threading.Event()
         self._thread = None
         self._result_queue = queue.Queue()
@@ -102,6 +103,7 @@ class Monitor:
     def _save_and_notify(self, result, image):
         timestamp = datetime.now().isoformat()
         result['timestamp'] = timestamp
+        result['user_id'] = self.user_id
         result['group_name'] = self.config.get('group_name', '默认')
 
         if self.config.get('save_screenshots', False):

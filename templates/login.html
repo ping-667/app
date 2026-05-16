@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QQ群消息监控 - 登录</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="login-body">
+    <div class="login-card">
+        <div class="login-logo">QQ群消息监控</div>
+        <div class="login-tabs">
+            <button class="login-tab active" onclick="switchTab('login')">登录</button>
+            <button class="login-tab" onclick="switchTab('register')">注册</button>
+        </div>
+        <div id="login-form">
+            <input type="text" id="login-username" placeholder="用户名" autocomplete="off">
+            <input type="password" id="login-password" placeholder="密码" onkeydown="if(event.key==='Enter')doLogin()">
+            <button class="btn btn-primary btn-full" onclick="doLogin()">登 录</button>
+            <div id="login-error" class="error-msg"></div>
+        </div>
+        <div id="register-form" style="display:none">
+            <input type="text" id="reg-username" placeholder="用户名（至少2个字符）" autocomplete="off">
+            <input type="password" id="reg-password" placeholder="密码（至少3个字符）" onkeydown="if(event.key==='Enter')doRegister()">
+            <button class="btn btn-primary btn-full" onclick="doRegister()">注 册</button>
+            <div id="reg-error" class="error-msg"></div>
+        </div>
+    </div>
+    <script>
+        function switchTab(tab) {
+            document.querySelectorAll('.login-tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById('login-form').style.display = tab === 'login' ? 'block' : 'none';
+            document.getElementById('register-form').style.display = tab === 'register' ? 'block' : 'none';
+            document.getElementById('login-error').textContent = '';
+            document.getElementById('reg-error').textContent = '';
+        }
+        async function doLogin() {
+            const u = document.getElementById('login-username').value.trim();
+            const p = document.getElementById('login-password').value;
+            const e = document.getElementById('login-error');
+            if (!u || !p) { e.textContent = '请输入用户名和密码'; return; }
+            const r = await fetch('/api/login', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({username:u, password:p}) });
+            const d = await r.json();
+            if (d.ok) { window.location.href = '/'; }
+            else { e.textContent = d.error; }
+        }
+        async function doRegister() {
+            const u = document.getElementById('reg-username').value.trim();
+            const p = document.getElementById('reg-password').value;
+            const e = document.getElementById('reg-error');
+            if (!u || !p) { e.textContent = '请输入用户名和密码'; return; }
+            if (u.length < 2) { e.textContent = '用户名至少2个字符'; return; }
+            if (p.length < 3) { e.textContent = '密码至少3个字符'; return; }
+            const r = await fetch('/api/register', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({username:u, password:p}) });
+            const d = await r.json();
+            if (d.ok) { window.location.href = '/'; }
+            else { e.textContent = d.error; }
+        }
+    </script>
+</body>
+</html>
