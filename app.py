@@ -246,7 +246,12 @@ def api_get_messages():
         limit=limit, offset=offset,
     )
     senders = db.get_unique_senders(user_id=uid)
-    all_keywords = db.get_unique_keywords(user_id=uid)
+    # Merge configured keywords with historically matched ones so new
+    # keywords appear in the filter dropdown even before first match.
+    cfg = db.get_user_config(uid)
+    configured = set(_parse_keywords(cfg))
+    historical = set(db.get_unique_keywords(user_id=uid))
+    all_keywords = sorted(configured | historical)
     return jsonify({
         "messages": messages,
         "senders": senders,
