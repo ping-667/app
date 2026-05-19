@@ -42,7 +42,7 @@
                         <th style="width:90px">发送者</th>
                         <th>内容</th>
                         <th style="width:140px">关键词</th>
-                        <th style="width:60px">操作</th>
+                        <th style="width:72px">操作</th>
                     </tr>
                 </thead>
                 <tbody id="msg-table"></tbody>
@@ -93,6 +93,18 @@
 
             <div class="setting-card">
                 <h3>选项</h3>
+                <div class="setting-item">
+                    <label>截图模式</label>
+                    <select id="capture-mode-select" onchange="onCaptureModeChange()">
+                        <option value="screenshot">截图+OCR（QQ需可见）</option>
+                        <option value="uia">UIA后台（QQ可隐藏/最小化）</option>
+                        <option value="onebot_ws">OneBot WS（NapCat/LLOneBot，无需截屏）</option>
+                    </select>
+                </div>
+                <div class="setting-item" id="ws-url-item" style="display:none">
+                    <label>WebSocket 地址</label>
+                    <input type="text" id="ws-url-input" value="ws://127.0.0.1:3001" onchange="saveSettings()">
+                </div>
                 <div class="setting-item">
                     <label><input type="checkbox" id="notify-check" onchange="saveSettings()" checked> 启用桌面通知</label>
                 </div>

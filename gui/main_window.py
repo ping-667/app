@@ -263,13 +263,7 @@ class MainWindow:
         values = self.tree.item(sel[0], 'values')
         if not values:
             return
-        msg_id = values[0]
-        messages = self.db.query_messages(limit=1)
-        msg = None
-        for m in messages:
-            if str(m['id']) == str(msg_id):
-                msg = m
-                break
+        msg = self.db.get_message_by_id(int(values[0]))
         if not msg:
             return
 

@@ -1,36 +1,15 @@
 import sys
-import os
 import threading
 import logging
-from pathlib import Path
 
-
-def setup_logging():
-    log_dir = Path(os.getenv('APPDATA')) / 'QQMonitor' / 'logs'
-    log_dir.mkdir(parents=True, exist_ok=True)
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
-        handlers=[
-            logging.FileHandler(log_dir / 'qqmonitor.log', encoding='utf-8'),
-            logging.StreamHandler(sys.stdout),
-        ],
-    )
-
-
-def set_dpi_aware():
-    try:
-        import ctypes
-        ctypes.windll.shcore.SetProcessDpiAwareness(1)
-    except Exception:
-        pass
+from utils import set_dpi_aware, setup_logging
 
 
 def check_dependencies():
     missing = []
-    for mod in ['paddleocr', 'mss', 'plyer', 'pystray']:
+    for mod in ("paddleocr", "mss", "plyer", "pystray"):
         try:
-            __import__(mod.replace('-', '_'))
+            __import__(mod.replace("-", "_"))
         except ImportError:
             missing.append(mod)
     if missing:
@@ -41,8 +20,7 @@ def check_dependencies():
 
 def main():
     set_dpi_aware()
-    setup_logging()
-    logger = logging.getLogger(__name__)
+    logger = setup_logging("qqmonitor")
     logger.info("QQ群消息监控 启动中...")
 
     check_dependencies()
@@ -66,8 +44,8 @@ def main():
     logger.info("OCR引擎已就绪")
 
     detector = Detector(
-        keywords=config.get('keywords', []),
-        keyword_mode=config.get('keyword_mode', 'exact'),
+        keywords=config.get("keywords", []),
+        keyword_mode=config.get("keyword_mode", "exact"),
     )
 
     monitor = Monitor(config, ocr, detector, db)
@@ -88,14 +66,14 @@ def main():
         exit_callback=exit_app,
     )
 
-    if config.get('monitoring_enabled', False):
+    if config.get("monitoring_enabled", False):
         main_win.root.after(500, main_win._start_monitor)
 
     tray_thread = threading.Thread(target=tray.run, daemon=True)
     tray_thread.start()
     logger.info("系统托盘已启动")
 
-    if config.get('start_minimized', False):
+    if config.get("start_minimized", False):
         main_win.root.withdraw()
     else:
         main_win.show()
@@ -109,5 +87,5 @@ def main():
         logger.info("已退出")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

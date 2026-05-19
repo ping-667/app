@@ -5,13 +5,15 @@ import hashlib
 from pathlib import Path
 from datetime import datetime
 
+from config import DEFAULT_KEYWORDS_STR
+
 
 class Database:
     def __init__(self, db_path=None):
         if db_path is None:
-            db_dir = Path(os.getenv('APPDATA')) / 'QQMonitor'
+            db_dir = Path(os.getenv("APPDATA")) / "QQMonitor"
             db_dir.mkdir(parents=True, exist_ok=True)
-            db_path = db_dir / 'messages.db'
+            db_path = db_dir / "messages.db"
         self.db_path = str(db_path)
         self._init_schema()
 
@@ -36,6 +38,7 @@ class Database:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS messages (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER DEFAULT 0,
                     detected_at TEXT NOT NULL,
                     sender TEXT DEFAULT '未知',
                     content TEXT NOT NULL,
@@ -46,12 +49,6 @@ class Database:
                     is_read INTEGER DEFAULT 0
                 )
             """)
-
-            # Migration: add user_id if upgrading from old schema
-            try:
-                conn.execute("ALTER TABLE messages ADD COLUMN user_id INTEGER DEFAULT 0")
-            except sqlite3.OperationalError:
-                pass
 
             conn.execute("CREATE INDEX IF NOT EXISTS idx_detected_at ON messages(detected_at)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_content_hash ON messages(content_hash)")
@@ -70,9 +67,22 @@ class Database:
                     interval_seconds INTEGER DEFAULT 5,
                     notification_enabled INTEGER DEFAULT 1,
                     save_screenshots INTEGER DEFAULT 0,
-                    group_name TEXT DEFAULT '默认'
+                    group_name TEXT DEFAULT '默认',
+                    capture_mode TEXT DEFAULT 'screenshot',
+                    ws_url TEXT DEFAULT 'ws://127.0.0.1:3001'
                 )
             """)
+            # Migration: add new columns if upgrading from older schema
+            for col, col_def in (
+                ("capture_mode", "TEXT DEFAULT 'screenshot'"),
+                ("ws_url", "TEXT DEFAULT 'ws://127.0.0.1:3001'"),
+            ):
+                try:
+                    conn.execute(
+                        f"ALTER TABLE user_config ADD COLUMN {col} {col_def}"
+                    )
+                except Exception:
+                    pass  # column already exists
 
     # ---- User management ----
 
@@ -87,7 +97,7 @@ class Database:
                 user_id = c.lastrowid
                 conn.execute(
                     "INSERT OR IGNORE INTO user_config (user_id, keywords) VALUES (?, ?)",
-                    (user_id, '考试,考核,测验,作业,截止日期,提交,考试时间,试卷,成绩,期末,期中,补考,答辩,实验报告,签到,点名'),
+                    (user_id, DEFAULT_KEYWORDS_STR),
                 )
                 return user_id
         except sqlite3.IntegrityError:
@@ -125,6 +135,8 @@ class Database:
                     'notification_enabled': True,
                     'save_screenshots': False,
                     'group_name': '默认',
+                    'capture_mode': 'screenshot',
+                    'ws_url': 'ws://127.0.0.1:3001',
                 }
             r = dict(row)
             return {
@@ -140,6 +152,8 @@ class Database:
                 'notification_enabled': bool(r.get('notification_enabled', 1)),
                 'save_screenshots': bool(r.get('save_screenshots', 0)),
                 'group_name': r.get('group_name', '默认'),
+                'capture_mode': r.get('capture_mode', 'screenshot'),
+                'ws_url': r.get('ws_url', 'ws://127.0.0.1:3001'),
             }
 
     def save_user_config(self, user_id, data):
@@ -148,8 +162,9 @@ class Database:
                 INSERT OR REPLACE INTO user_config
                 (user_id, keywords, keyword_mode, region_left, region_top,
                  region_width, region_height, interval_seconds,
-                 notification_enabled, save_screenshots, group_name)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 notification_enabled, save_screenshots, group_name,
+                 capture_mode, ws_url)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 user_id,
                 data.get('keywords', ''),
@@ -162,6 +177,8 @@ class Database:
                 1 if data.get('notification_enabled', True) else 0,
                 1 if data.get('save_screenshots', False) else 0,
                 data.get('group_name', '默认'),
+                data.get('capture_mode', 'screenshot'),
+                data.get('ws_url', 'ws://127.0.0.1:3001'),
             ))
 
     # ---- Messages ----
@@ -182,6 +199,16 @@ class Database:
                  data.get('content_hash')),
             )
             return c.lastrowid
+
+    def get_message_by_id(self, msg_id):
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT messages.*, users.username FROM messages "
+                "LEFT JOIN users ON messages.user_id = users.id "
+                "WHERE messages.id=?",
+                (msg_id,),
+            ).fetchone()
+            return dict(row) if row else None
 
     def query_messages(self, user_id=None, keyword=None, sender=None,
                        start_date=None, end_date=None, limit=100, offset=0):

@@ -1,6 +1,45 @@
+# Bytecode
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
+
+# Virtual environments
+.venv/
+venv/
+env/
+.env
+
+# IDE / Editor
 .claude/
 .vs/
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs & runtime data
 *.log
+*.db
+config.json
+*.tmp
+
+# Exports & screenshots (user data)
+exports/
+screenshots/
+
+# NapCatQQ / external tools
+NapCatQQ/
+NapCatQQ_OneKey/
+NapCatQQ_OneKey.zip
+QQ.exe
+
+# Diagnostic / temp scripts
+diag.py
+diag_screenshot.png
+find_qq.py
+@AutomationLog.txt

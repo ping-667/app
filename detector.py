@@ -5,30 +5,37 @@ from collections import deque
 
 
 class Detector:
-    def __init__(self, keywords, keyword_mode='exact'):
+    """Extracts sender info from OCR results and matches against keywords."""
+
+    def __init__(self, keywords, keyword_mode="exact"):
         self.keywords = [k for k in keywords if k and k.strip()]
         self.keyword_mode = keyword_mode
-        self._recent_hashes = deque(maxlen=300)
+        self._recent_hashes: deque = deque(maxlen=300)
 
     def set_keywords(self, keywords):
         self.keywords = [k for k in keywords if k and k.strip()]
 
+    # ------------------------------------------------------------------
+    # Sender extraction
+    # ------------------------------------------------------------------
+
+    _TIME_PATTERNS = [
+        r"\d{4}[/\-.]\d{1,2}[/\-.]\d{1,2}\s*\d{1,2}:\d{2}(:\d{2})?",
+        r"\[\d{1,2}:\d{2}(:\d{2})?\]",
+        r"\d{1,2}:\d{2}(:\d{2})?",
+        r"(上午|下午|凌晨|中午)\s*\d{1,2}:\d{2}",
+        r"昨天|今天|前天",
+    ]
+
     def parse_sender(self, ocr_lines):
+        """Try to extract the message sender from the first few OCR lines."""
         if not ocr_lines:
             return None
 
-        time_patterns = [
-            r'\d{4}[/\-.]\d{1,2}[/\-.]\d{1,2}\s*\d{1,2}:\d{2}(:\d{2})?',
-            r'\[\d{1,2}:\d{2}(:\d{2})?\]',
-            r'\d{1,2}:\d{2}(:\d{2})?',
-            r'(上午|下午|凌晨|中午)\s*\d{1,2}:\d{2}',
-            r'昨天|今天|前天',
-        ]
-
         sender_line = None
         for i, line in enumerate(ocr_lines[:3]):
-            text = line['text']
-            for tp in time_patterns:
+            text = line["text"]
+            for tp in self._TIME_PATTERNS:
                 if re.search(tp, text):
                     sender_line = text
                     break
@@ -36,27 +43,32 @@ class Detector:
                 break
 
         if sender_line:
-            for tp in time_patterns:
-                sender_line = re.sub(tp, '', sender_line).strip()
-            sender_line = re.sub(r'[\(\（\[\<].*?[\)\）\]\>]', '', sender_line).strip()
-            sender_line = re.sub(r'[^一-鿿\w\s]', '', sender_line).strip()
+            for tp in self._TIME_PATTERNS:
+                sender_line = re.sub(tp, "", sender_line).strip()
+            sender_line = re.sub(r"[\(\（\[\<].*?[\)\）\]\>]", "", sender_line).strip()
+            sender_line = re.sub(r"[^一-鿿\w\s]", "", sender_line).strip()
             if 1 <= len(sender_line) <= 30:
                 return sender_line
             return None
 
         for line in ocr_lines[:2]:
-            text = line['text'].strip()
+            text = line["text"].strip()
             if 1 <= len(text) <= 25 and not any(
-                    text.startswith(w) for w in ['消息', '系统', '通知', '群', '退回']):
+                text.startswith(w) for w in ("消息", "系统", "通知", "群", "退回")
+            ):
                 return text
         return None
+
+    # ------------------------------------------------------------------
+    # Keyword matching
+    # ------------------------------------------------------------------
 
     def match_keywords(self, text):
         matched = []
         for kw in self.keywords:
             if not kw or not kw.strip():
                 continue
-            if self.keyword_mode == 'regex':
+            if self.keyword_mode == "regex":
                 try:
                     if re.search(kw, text, re.IGNORECASE):
                         matched.append(kw)
@@ -68,11 +80,16 @@ class Detector:
                     matched.append(kw)
         return matched
 
+    # ------------------------------------------------------------------
+    # Duplicate detection
+    # ------------------------------------------------------------------
+
     def is_duplicate(self, content, sender, window_seconds=60):
-        normalized = re.sub(r'\s+', '', content.lower())
-        normalized = re.sub(r'[^一-鿿\w]', '', normalized)
+        normalized = re.sub(r"\s+", "", content.lower())
+        normalized = re.sub(r"[^一-鿿\w]", "", normalized)
         msg_hash = hashlib.sha256(
-            f"{sender}|||{normalized}".encode()).hexdigest()
+            f"{sender}|||{normalized}".encode()
+        ).hexdigest()
 
         now = time.time()
         for h, ts in list(self._recent_hashes):
@@ -85,29 +102,51 @@ class Detector:
         self._recent_hashes.append((msg_hash, now))
         return False
 
+    # ------------------------------------------------------------------
+    # Top-level processing
+    # ------------------------------------------------------------------
+
     def process_ocr_result(self, ocr_lines):
-        high_conf = [l for l in ocr_lines if l['confidence'] > 0.5]
+        high_conf = [l for l in ocr_lines if l["confidence"] > 0.5]
         if not high_conf:
             return None
 
-        full_text = '\n'.join(l['text'] for l in high_conf)
+        full_text = "\n".join(l["text"] for l in high_conf)
         sender = self.parse_sender(high_conf)
         matched = self.match_keywords(full_text)
         if not matched:
             return None
-        if self.is_duplicate(full_text, sender or '未知'):
+        if self.is_duplicate(full_text, sender or "未知"):
             return None
 
         body_lines = []
         for l in high_conf:
-            if sender and l['text'].strip() == sender:
+            if sender and l["text"].strip() == sender:
                 continue
-            body_lines.append(l['text'])
-        body = '\n'.join(body_lines).strip() or full_text.strip()
+            body_lines.append(l["text"])
+        body = "\n".join(body_lines).strip() or full_text.strip()
 
         return {
-            'sender': sender or '未知',
-            'content': body,
-            'matched_keywords': matched,
-            'full_text': full_text,
+            "sender": sender or "未知",
+            "content": body,
+            "matched_keywords": matched,
+            "full_text": full_text,
+        }
+
+    def process_onebot_message(self, sender, content):
+        """Process a message received from OneBot (NapCat/LLOneBot).
+
+        Sender and content are already known — no OCR parsing needed.
+        Only runs keyword matching + duplicate detection.
+        """
+        matched = self.match_keywords(content)
+        if not matched:
+            return None
+        if self.is_duplicate(content, sender or "未知"):
+            return None
+        return {
+            "sender": sender or "未知",
+            "content": content,
+            "matched_keywords": matched,
+            "full_text": content,
         }

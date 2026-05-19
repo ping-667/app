@@ -1,7 +1,20 @@
+# Web framework
+Flask>=3.0
+
+# OCR engine
 numpy<2
 paddlepaddle>=3.0.0
 paddleocr>=2.8.0
+
+# Screen capture & image processing
 mss>=9.0.1
 Pillow>=9.0.0
+
+# Windows automation
+pywin32>=305
+uiautomation>=2.0
+psutil>=5.9
+
+# Desktop GUI & notifications
+pystray>=0.19
 plyer>=2.1.0
-pystray>=0.19.5

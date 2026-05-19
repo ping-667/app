@@ -41,6 +41,9 @@ async function loadConfig() {
     document.getElementById('group-input').value = c.group_name || '默认';
     document.getElementById('notify-check').checked = c.notification_enabled !== false;
     document.getElementById('screenshot-check').checked = c.save_screenshots === true;
+    document.getElementById('capture-mode-select').value = c.capture_mode || 'screenshot';
+    document.getElementById('ws-url-input').value = c.ws_url || 'ws://127.0.0.1:3001';
+    onCaptureModeChange();
     const ri = document.getElementById('region-info');
     ri.textContent = `左:${c.region.left} 上:${c.region.top} 宽:${c.region.width} 高:${c.region.height}`;
 }
@@ -51,8 +54,16 @@ async function saveSettings() {
         group_name: document.getElementById('group-input').value || '默认',
         notification_enabled: document.getElementById('notify-check').checked,
         save_screenshots: document.getElementById('screenshot-check').checked,
+        capture_mode: document.getElementById('capture-mode-select').value,
+        ws_url: document.getElementById('ws-url-input').value || 'ws://127.0.0.1:3001',
     };
     await fetch('/api/config', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(cfg) });
+}
+
+function onCaptureModeChange() {
+    const mode = document.getElementById('capture-mode-select').value;
+    document.getElementById('ws-url-item').style.display = mode === 'onebot_ws' ? '' : 'none';
+    saveSettings();
 }
 
 // ---- Messages ----
@@ -89,10 +100,10 @@ async function loadMessages() {
                 <td>${(m.detected_at || '').substring(0, 19)}</td>
                 <td><strong>${escHtml(m.sender)}</strong></td>
                 <td title="${escAttr(m.content)}">${escHtml(m.content.length > 60 ? m.content.substring(0, 60) + '...' : m.content)}</td>
-                <td style="color:#e53935">${escHtml(m.matched_keywords)}</td>
+                <td class="keyword-col">${escHtml(m.matched_keywords)}</td>
                 <td>
-                    <a href="javascript:showDetail(${m.id})" style="color:#1a73e8;font-size:12px;cursor:pointer">详情</a>
-                    <a href="javascript:delMsg(${m.id})" style="color:#999;font-size:12px;cursor:pointer;margin-left:8px">删</a>
+                    <a href="javascript:showDetail(${m.id})" class="text-cyan" style="font-size:12px;cursor:pointer">详情</a>
+                    <a href="javascript:delMsg(${m.id})" style="color:var(--text-dim);font-size:12px;cursor:pointer;margin-left:10px">删</a>
                 </td>
             </tr>
         `).join('');
@@ -105,11 +116,11 @@ async function showDetail(id) {
     if (!d.ok) return;
     const m = d.message;
     document.getElementById('detail-body').innerHTML = `
-        <div class="detail-field"><span class="detail-label">发送者：</span>${escHtml(m.sender)}</div>
-        <div class="detail-field"><span class="detail-label">时间：</span>${m.detected_at}</div>
-        <div class="detail-field"><span class="detail-label">关键词：</span><span style="color:#e53935">${escHtml(m.matched_keywords)}</span></div>
-        <div class="detail-field"><span class="detail-label">群组：</span>${escHtml(m.group_name || '默认')}</div>
-        <div class="detail-label">消息内容：</div>
+        <div class="detail-field"><span class="detail-label">发送者</span><br>${escHtml(m.sender)}</div>
+        <div class="detail-field"><span class="detail-label">时间</span><br>${m.detected_at}</div>
+        <div class="detail-field"><span class="detail-label">关键词</span><br><span class="text-red">${escHtml(m.matched_keywords)}</span></div>
+        <div class="detail-field"><span class="detail-label">群组</span><br>${escHtml(m.group_name || '默认')}</div>
+        <div class="detail-label">消息内容</div>
         <div class="detail-content">${escHtml(m.content)}</div>
     `;
     document.getElementById('detail-modal').classList.add('show');
@@ -176,11 +187,11 @@ async function delKeyword(kw) {
 
 async function changeMode() {
     const mode = document.getElementById('kw-mode-select').value;
-    await fetch('/api/config', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({keyword_mode: mode, keywords: ''}) });
-    // Preserve keywords - get current, update mode
-    const r = await fetch('/api/keywords');
-    const d = await r.json();
-    await fetch('/api/config', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({keyword_mode: mode, keywords: (d.keywords||[]).join(',')}) });
+    await fetch('/api/config', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({keyword_mode: mode}),
+    });
 }
 
 async function resetKeywords() {
