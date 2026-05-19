@@ -24,6 +24,7 @@ function switchMainTab(tab, el) {
     document.getElementById('tab-' + tab).classList.add('active');
     if (tab === 'history') loadMessages();
     if (tab === 'keywords') loadKeywords();
+    if (tab === 'stats') loadStats();
     if (tab === 'settings') loadConfig();
 }
 
@@ -140,6 +141,95 @@ async function exportCSV() {
     const r = await fetch('/api/export', { method: 'POST' });
     const d = await r.json();
     if (d.ok) alert('已导出到: ' + d.path);
+}
+
+// ---- Statistics ----
+let chartInstances = {};
+
+async function loadStats() {
+    const r = await fetch('/api/statistics');
+    const d = await r.json();
+    document.getElementById('stat-total').textContent = d.total || 0;
+
+    // Destroy previous charts
+    Object.values(chartInstances).forEach(c => c.destroy());
+    chartInstances = {};
+
+    // Keyword bar chart
+    const kwLabels = (d.keyword_counts || []).map(k => k[0]);
+    const kwValues = (d.keyword_counts || []).map(k => k[1]);
+    if (kwLabels.length > 0) {
+        const ctx1 = document.getElementById('chart-keywords').getContext('2d');
+        chartInstances.keywords = new Chart(ctx1, {
+            type: 'bar',
+            data: {
+                labels: kwLabels,
+                datasets: [{
+                    label: '命中次数',
+                    data: kwValues,
+                    backgroundColor: kwLabels.map((_, i) =>
+                        `hsla(${190 + i * 15}, 90%, 50%, 0.7)`),
+                    borderColor: kwLabels.map((_, i) =>
+                        `hsl(${190 + i * 15}, 90%, 50%)`),
+                    borderWidth: 1,
+                    borderRadius: 4,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                },
+                scales: {
+                    x: {
+                        ticks: { color: '#5a6478', font: { size: 11 } },
+                        grid: { color: 'rgba(255,255,255,0.04)' },
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: { color: '#5a6478', font: { size: 11 }, stepSize: 1 },
+                        grid: { color: 'rgba(255,255,255,0.04)' },
+                    },
+                },
+            },
+        });
+    }
+
+    // Sender doughnut chart
+    const sLabels = (d.top_senders || []).map(s => s.sender);
+    const sValues = (d.top_senders || []).map(s => s.cnt);
+    if (sLabels.length > 0) {
+        const ctx2 = document.getElementById('chart-senders').getContext('2d');
+        chartInstances.senders = new Chart(ctx2, {
+            type: 'doughnut',
+            data: {
+                labels: sLabels,
+                datasets: [{
+                    data: sValues,
+                    backgroundColor: [
+                        'rgba(0,200,232,0.8)', 'rgba(240,168,40,0.8)',
+                        'rgba(46,204,113,0.8)', 'rgba(240,62,77,0.8)',
+                        'rgba(155,89,182,0.8)', 'rgba(52,152,219,0.8)',
+                        'rgba(230,126,34,0.8)', 'rgba(26,188,156,0.8)',
+                        'rgba(149,165,166,0.8)', 'rgba(255,107,129,0.8)',
+                    ],
+                    borderColor: '#161d2a',
+                    borderWidth: 2,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: '#94a3b8', font: { size: 11 }, padding: 14, usePointStyle: true },
+                    },
+                },
+            },
+        });
+    }
 }
 
 // ---- Keywords ----

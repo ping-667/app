@@ -18,7 +18,7 @@ set_dpi_aware()
 logger = setup_logging("webapp")
 
 app = Flask(__name__)
-app.secret_key = "qq_monitor_fixed_secret_key_2026"
+app.secret_key = os.environ.get("QQ_MONITOR_SECRET", os.urandom(24).hex())
 app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
 
 from database import Database
@@ -400,6 +400,17 @@ def api_region_set():
     cfg["region"] = region
     db.save_user_config(session["user_id"], cfg)
     return jsonify({"ok": True, "region": region})
+
+
+# ---------------------------------------------------------------------------
+# Statistics API
+# ---------------------------------------------------------------------------
+
+@app.route("/api/statistics", methods=["GET"])
+@login_required
+def api_statistics():
+    stats = db.get_statistics(user_id=session["user_id"])
+    return jsonify(stats)
 
 
 # ---------------------------------------------------------------------------

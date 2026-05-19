@@ -1,7 +1,7 @@
 import sqlite3
 import os
 import csv
-import hashlib
+import bcrypt
 from pathlib import Path
 from datetime import datetime
 
@@ -87,7 +87,7 @@ class Database:
     # ---- User management ----
 
     def create_user(self, username, password):
-        pw_hash = hashlib.sha256(password.encode()).hexdigest()
+        pw_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
         try:
             with self._connect() as conn:
                 c = conn.execute(
@@ -104,13 +104,14 @@ class Database:
             return None
 
     def verify_user(self, username, password):
-        pw_hash = hashlib.sha256(password.encode()).hexdigest()
         with self._connect() as conn:
             row = conn.execute(
-                "SELECT id, username FROM users WHERE username=? AND password_hash=?",
-                (username, pw_hash),
+                "SELECT id, username, password_hash FROM users WHERE username=?",
+                (username,),
             ).fetchone()
-            return dict(row) if row else None
+            if row and bcrypt.checkpw(password.encode(), row["password_hash"].encode()):
+                return {"id": row["id"], "username": row["username"]}
+            return None
 
     def user_exists(self, username):
         with self._connect() as conn:

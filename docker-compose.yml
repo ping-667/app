@@ -1,0 +1,16 @@
+version: "3.9"
+
+services:
+  qq-monitor:
+    build: .
+    container_name: qq-monitor
+    ports:
+      - "5000:5000"
+    volumes:
+      - qqmonitor_data:/data/QQMonitor
+    environment:
+      - QQ_MONITOR_SECRET=${QQ_MONITOR_SECRET:-}
+    restart: unless-stopped
+
+volumes:
+  qqmonitor_data:

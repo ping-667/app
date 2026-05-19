@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>QQ群消息监控</title>
     <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
     <header>
@@ -18,6 +19,7 @@
     <div class="tabs">
         <button class="tab active" onclick="switchMainTab('history', this)">消息记录</button>
         <button class="tab" onclick="switchMainTab('keywords', this)">关键词管理</button>
+        <button class="tab" onclick="switchMainTab('stats', this)">数据统计</button>
         <button class="tab" onclick="switchMainTab('settings', this)">设置</button>
     </div>
 
@@ -120,6 +122,24 @@
                     <button class="btn btn-primary" id="btn-start" onclick="startMonitor()">▶ 开始监控</button>
                     <button class="btn btn-danger" id="btn-stop" onclick="stopMonitor()" disabled>■ 停止</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- === 数据统计 TAB === -->
+    <div id="tab-stats" class="tab-content">
+        <div class="stats-grid">
+            <div class="stats-hero">
+                <span class="stats-hero-value" id="stat-total">0</span>
+                <span class="stats-hero-label">已捕获消息</span>
+            </div>
+            <div class="chart-card chart-wide">
+                <h3>关键词命中排行</h3>
+                <div class="chart-wrap"><canvas id="chart-keywords"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <h3>发送者分布</h3>
+                <div class="chart-wrap"><canvas id="chart-senders"></canvas></div>
             </div>
         </div>
     </div>

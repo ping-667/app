@@ -18,3 +18,9 @@ psutil>=5.9
 # Desktop GUI & notifications
 pystray>=0.19
 plyer>=2.1.0
+
+# Security
+bcrypt>=4.0
+
+# WebSocket (OneBot / NapCatQQ)
+websocket-client>=0.58
