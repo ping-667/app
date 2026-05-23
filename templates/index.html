@@ -73,11 +73,11 @@
     <div id="tab-settings" class="tab-content">
         <div class="settings-grid">
             <div class="setting-card">
-                <h3>监控区域</h3>
-                <div id="region-info">未设置 (默认 800x600)</div>
-                <div class="setting-row">
-                    <button class="btn btn-primary" onclick="selectRegion()">框选区域</button>
-                    <span style="color:#888;font-size:13px">框选 QQ 群聊窗口的消息区域</span>
+                <h3>OneBot 连接</h3>
+                <div class="setting-item">
+                    <label>WebSocket 地址</label>
+                    <input type="text" id="ws-url-input" value="ws://127.0.0.1:3001" onchange="saveSettings()">
+                    <span style="color:#888;font-size:12px">NapCatQQ / LLOneBot 的 OneBot 11 WebSocket 地址</span>
                 </div>
             </div>
 
@@ -96,22 +96,7 @@
             <div class="setting-card">
                 <h3>选项</h3>
                 <div class="setting-item">
-                    <label>截图模式</label>
-                    <select id="capture-mode-select" onchange="onCaptureModeChange()">
-                        <option value="screenshot">截图+OCR（QQ需可见）</option>
-                        <option value="uia">UIA后台（QQ可隐藏/最小化）</option>
-                        <option value="onebot_ws">OneBot WS（NapCat/LLOneBot，无需截屏）</option>
-                    </select>
-                </div>
-                <div class="setting-item" id="ws-url-item" style="display:none">
-                    <label>WebSocket 地址</label>
-                    <input type="text" id="ws-url-input" value="ws://127.0.0.1:3001" onchange="saveSettings()">
-                </div>
-                <div class="setting-item">
                     <label><input type="checkbox" id="notify-check" onchange="saveSettings()" checked> 启用桌面通知</label>
-                </div>
-                <div class="setting-item">
-                    <label><input type="checkbox" id="screenshot-check" onchange="saveSettings()"> 保存匹配截图</label>
                 </div>
             </div>
 

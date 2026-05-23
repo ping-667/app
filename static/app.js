@@ -1,7 +1,5 @@
 // ---- Globals ----
 let currentTab = 'history';
-let regionStart = null;
-let regionEnd = null;
 
 // ---- Init ----
 document.addEventListener('DOMContentLoaded', () => {
@@ -41,12 +39,7 @@ async function loadConfig() {
     document.getElementById('interval-input').value = c.interval_seconds || 5;
     document.getElementById('group-input').value = c.group_name || '默认';
     document.getElementById('notify-check').checked = c.notification_enabled !== false;
-    document.getElementById('screenshot-check').checked = c.save_screenshots === true;
-    document.getElementById('capture-mode-select').value = c.capture_mode || 'screenshot';
     document.getElementById('ws-url-input').value = c.ws_url || 'ws://127.0.0.1:3001';
-    onCaptureModeChange();
-    const ri = document.getElementById('region-info');
-    ri.textContent = `左:${c.region.left} 上:${c.region.top} 宽:${c.region.width} 高:${c.region.height}`;
 }
 
 async function saveSettings() {
@@ -54,17 +47,9 @@ async function saveSettings() {
         interval_seconds: parseInt(document.getElementById('interval-input').value) || 5,
         group_name: document.getElementById('group-input').value || '默认',
         notification_enabled: document.getElementById('notify-check').checked,
-        save_screenshots: document.getElementById('screenshot-check').checked,
-        capture_mode: document.getElementById('capture-mode-select').value,
         ws_url: document.getElementById('ws-url-input').value || 'ws://127.0.0.1:3001',
     };
     await fetch('/api/config', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(cfg) });
-}
-
-function onCaptureModeChange() {
-    const mode = document.getElementById('capture-mode-select').value;
-    document.getElementById('ws-url-item').style.display = mode === 'onebot_ws' ? '' : 'none';
-    saveSettings();
 }
 
 // ---- Messages ----
@@ -326,11 +311,6 @@ async function pollMonitorStatus() {
         const d = await r.json();
         updateMonitorUI(d.running);
     } catch (e) { /* ignore */ }
-}
-
-// ---- Region Select ----
-function selectRegion() {
-    window.location.href = '/region';
 }
 
 // ---- Utils ----

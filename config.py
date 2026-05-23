@@ -11,18 +11,14 @@ DEFAULT_KEYWORDS = [
 DEFAULT_KEYWORDS_STR = ",".join(DEFAULT_KEYWORDS)
 
 DEFAULT_CONFIG = {
-    "region": {"left": 0, "top": 0, "width": 800, "height": 600},
     "interval_seconds": 5,
     "keywords": DEFAULT_KEYWORDS,
     "keyword_mode": "exact",
     "monitoring_enabled": True,
     "start_minimized": False,
     "notification_enabled": True,
-    "save_screenshots": False,
     "group_name": "默认",
-    "image_diff_threshold": 0.95,
-    "capture_mode": "screenshot",  # "screenshot" / "uia" / "onebot_ws"
-    "ws_url": "ws://127.0.0.1:3001",  # OneBot WebSocket URL (NapCat/LLOneBot)
+    "ws_url": "ws://127.0.0.1:3001",
 }
 
 
@@ -53,12 +49,3 @@ class Config:
 
     def set(self, key, value):
         self.data[key] = value
-
-    def get_region_dict(self):
-        r = self.data["region"]
-        return {
-            "left": int(r["left"]),
-            "top": int(r["top"]),
-            "width": int(r["width"]),
-            "height": int(r["height"]),
-        }

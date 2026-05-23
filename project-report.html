@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>QQ群消息监控 — 项目报告</title>
+<style>
+  :root { --c1: #1a1a2e; --c2: #16213e; --c3: #0f3460; --accent: #e94560; --text: #eee; --muted: #a0a0b0; }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: "Microsoft YaHei", "PingFang SC", "Helvetica Neue", sans-serif;
+    background: #0d0d0d;
+    color: var(--text);
+    display: flex; justify-content: center;
+  }
+
+  .page {
+    width: 210mm; min-height: 297mm;
+    background: linear-gradient(160deg, var(--c1) 0%, var(--c2) 60%, var(--c3) 100%);
+    padding: 14mm 15mm 12mm 15mm;
+    page-break-after: always;
+    display: flex; flex-direction: column;
+    position: relative; overflow: hidden;
+  }
+  .page:last-child { page-break-after: auto; }
+
+  /* decorative corner */
+  .page::after {
+    content: ""; position: absolute; top: 0; right: 0;
+    width: 120mm; height: 120mm;
+    background: radial-gradient(circle at 80% 20%, rgba(233,69,96,0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  header { border-bottom: 2px solid var(--accent); padding-bottom: 6mm; margin-bottom: 7mm; position: relative; z-index: 1; }
+  header h1 { font-size: 22pt; font-weight: 800; letter-spacing: 1px; }
+  header .sub { color: var(--muted); font-size: 9pt; margin-top: 1.5mm; }
+  header .badge { display: inline-block; background: var(--accent); color: #fff; font-size: 7pt; padding: 1.5mm 4mm; border-radius: 3px; margin-left: 3mm; vertical-align: middle; }
+
+  h2 { font-size: 12pt; color: var(--accent); margin-bottom: 3mm; padding-bottom: 1.5mm; border-bottom: 1px solid rgba(255,255,255,.08); }
+  h3 { font-size: 10pt; margin: 3mm 0 2mm 0; color: #ccc; }
+
+  .features { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5mm 5mm; margin-bottom: 7mm; position: relative; z-index: 1; }
+  .feature { font-size: 8.5pt; padding: 2.5mm 3mm; background: rgba(255,255,255,.03); border-radius: 3px; border-left: 2px solid var(--accent); }
+  .feature strong { color: #fff; }
+
+  .arch { position: relative; z-index: 1; flex: 1; }
+  .arch-layers { display: flex; flex-direction: column; gap: 2.5mm; }
+  .layer { border: 1px solid rgba(255,255,255,.1); border-radius: 4px; padding: 3mm 4mm; font-size: 8pt; }
+  .layer-title { font-size: 9pt; font-weight: 700; color: var(--accent); margin-bottom: 2mm; }
+  .layer-boxes { display: flex; gap: 3mm; flex-wrap: wrap; }
+  .layer-box { background: rgba(255,255,255,.06); padding: 2mm 3mm; border-radius: 2px; font-size: 7.5pt; text-align: center; min-width: 22mm; }
+  .layer-box .box-name { font-weight: 600; }
+  .layer-box .box-tech { color: var(--muted); font-size: 6.5pt; margin-top: 1mm; }
+  .arrow-down { text-align: center; color: var(--accent); font-size: 10pt; margin: 1mm 0; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 8pt; position: relative; z-index: 1; }
+  th { text-align: left; color: var(--accent); padding: 1.5mm 2mm; border-bottom: 1px solid rgba(255,255,255,.15); font-size: 8pt; }
+  td { padding: 1.5mm 2mm; border-bottom: 1px solid rgba(255,255,255,.05); vertical-align: top; }
+  tr:hover td { background: rgba(255,255,255,.02); }
+
+  .stats { display: flex; gap: 5mm; margin-bottom: 6mm; position: relative; z-index: 1; }
+  .stat-card { flex: 1; text-align: center; padding: 3mm; background: rgba(255,255,255,.03); border-radius: 4px; }
+  .stat-num { font-size: 18pt; font-weight: 800; color: var(--accent); }
+  .stat-label { font-size: 7pt; color: var(--muted); margin-top: 1mm; }
+
+  .milestones { font-size: 8pt; position: relative; z-index: 1; }
+  .milestone { display: flex; gap: 3mm; padding: 1.5mm 0; border-bottom: 1px solid rgba(255,255,255,.04); }
+  .milestone .date { color: var(--accent); min-width: 18mm; font-weight: 600; }
+  .milestone .msg { flex: 1; }
+  .milestone .msg span { color: var(--muted); font-size: 7pt; }
+
+  .footer { margin-top: auto; padding-top: 4mm; border-top: 1px solid rgba(255,255,255,.08); font-size: 7pt; color: var(--muted); position: relative; z-index: 1; display: flex; justify-content: space-between; }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; position: relative; z-index: 1; }
+
+  @media print {
+    body { background: none; }
+    .page {
+      box-shadow: none;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+  }
+
+  @page { size: A4; margin: 0; }
+</style>
+</head>
+<body>
+
+<!-- =========================== PAGE 1 (FRONT) =========================== -->
+<div class="page">
+
+  <header>
+    <h1>QQ群消息监控 <span class="badge">v1.0</span></h1>
+    <div class="sub">面向学生群体的QQ群消息实时监控系统 &nbsp;|&nbsp; 开源协议：MIT &nbsp;|&nbsp; 2026年5月</div>
+  </header>
+
+  <h2>项目定位</h2>
+  <p style="font-size:9pt; margin-bottom:6mm; position:relative; z-index:1; line-height:1.6;">
+    老师在QQ群布置作业或发布考试通知时，系统通过<b>截图OCR</b>、<b>UI Automation</b>或<b>OneBot WebSocket</b>
+    三种模式实时采集群聊消息，匹配用户设定的关键词后即时桌面弹窗提醒，避免错过重要信息。
+    配套Web管理面板提供消息记录浏览、关键词管理、数据可视化看板及CSV导出功能。
+  </p>
+
+  <h2>核心功能</h2>
+  <div class="features">
+    <div class="feature"><strong>多模式采集</strong><br>截图OCR / UIA后台无感 / OneBot WebSocket 零延迟，按需切换</div>
+    <div class="feature"><strong>关键词匹配</strong><br>精确匹配 + 正则匹配双模式，支持批量增删改查</div>
+    <div class="feature"><strong>桌面通知</strong><br>命中关键词即时弹窗提醒，附带发送者和内容摘要</div>
+    <div class="feature"><strong>Web控制台</strong><br>暗色监控主题，消息记录、关键词管理、数据看板一体化</div>
+    <div class="feature"><strong>多用户体系</strong><br>注册/登录，bcrypt密码哈希，Session认证，数据按用户隔离</div>
+    <div class="feature"><strong>数据可视化</strong><br>Chart.js 实时关键词命中排行 + 发送者分布统计</div>
+  </div>
+
+  <h2>系统架构</h2>
+  <div class="arch">
+    <div class="arch-layers">
+
+      <div class="layer">
+        <div class="layer-title">采集层 — 三种消息获取模式</div>
+        <div class="layer-boxes">
+          <div class="layer-box"><span class="box-name">截图+OCR</span><br><span class="box-tech">MSS + PaddleOCR</span></div>
+          <div class="layer-box"><span class="box-name">UIA后台</span><br><span class="box-tech">UI Automation</span></div>
+          <div class="layer-box"><span class="box-name">OneBot WS</span><br><span class="box-tech">NapCatQQ / LLOneBot</span></div>
+          <div class="layer-box" style="background:rgba(233,69,96,.15);"><span class="box-name">检测器 Detector</span><br><span class="box-tech">发件人解析 + 关键词匹配 + 去重</span></div>
+        </div>
+      </div>
+
+      <div class="arrow-down">&#x25BC;</div>
+
+      <div class="layer">
+        <div class="layer-title">存储层 — 持久化与用户管理</div>
+        <div class="layer-boxes">
+          <div class="layer-box"><span class="box-name">SQLite (WAL)</span><br><span class="box-tech">用户表 / 消息表 / 用户配置表</span></div>
+          <div class="layer-box"><span class="box-name">bcrypt</span><br><span class="box-tech">密码哈希认证</span></div>
+          <div class="layer-box"><span class="box-name">CSV导出</span><br><span class="box-tech">一键导出消息记录</span></div>
+        </div>
+      </div>
+
+      <div class="arrow-down">&#x25BC;</div>
+
+      <div class="layer">
+        <div class="layer-title">展示层 — Web面板 + 桌面通知</div>
+        <div class="layer-boxes">
+          <div class="layer-box"><span class="box-name">Flask Web服务</span><br><span class="box-tech">端口 5000</span></div>
+          <div class="layer-box"><span class="box-name">消息记录页</span><br><span class="box-tech">筛选 / 删除 / 导出</span></div>
+          <div class="layer-box"><span class="box-name">关键词管理</span><br><span class="box-tech">增删改查 / 批量重置</span></div>
+          <div class="layer-box"><span class="box-name">数据统计</span><br><span class="box-tech">Chart.js 可视化</span></div>
+          <div class="layer-box"><span class="box-name">桌面通知</span><br><span class="box-tech">plyer</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>QQ群消息监控 — 项目报告</span>
+    <span>第 1 页 / 共 2 页</span>
+  </div>
+</div>
+
+<!-- =========================== PAGE 2 (BACK) =========================== -->
+<div class="page">
+
+  <header>
+    <h1>技术细节 &amp; 开发概览</h1>
+    <div class="sub">技术栈 &nbsp;|&nbsp; 采集模式对比 &nbsp;|&nbsp; 项目统计 &nbsp;|&nbsp; 关键里程碑</div>
+  </header>
+
+  <h2>技术栈一览</h2>
+  <table style="margin-bottom:6mm;">
+    <tr><th style="width:22mm;">层级</th><th>技术选型</th><th style="width:40mm;">说明</th></tr>
+    <tr><td>后端框架</td><td>Flask</td><td>轻量Python Web框架</td></tr>
+    <tr><td>OCR引擎</td><td>PaddleOCR (PP-OCRv4)</td><td>百度飞桨，中文识别精度高</td></tr>
+    <tr><td>屏幕截图</td><td>MSS</td><td>跨平台高性能截屏</td></tr>
+    <tr><td>Windows交互</td><td>pywin32, UI Automation, pystray</td><td>窗口操控 + 后台文本提取 + 托盘图标</td></tr>
+    <tr><td>消息协议</td><td>OneBot 11 (WebSocket)</td><td>对接NapCatQQ / LLOneBot</td></tr>
+    <tr><td>数据库</td><td>SQLite (WAL mode)</td><td>零配置，并发读写性能好</td></tr>
+    <tr><td>认证安全</td><td>bcrypt + Session</td><td>密码哈希 + 环境变量密钥</td></tr>
+    <tr><td>前端可视化</td><td>Chart.js 4.x</td><td>轻量Canvas图表库</td></tr>
+    <tr><td>前端样式</td><td>纯CSS暗色主题</td><td>监控控制台风格，无框架依赖</td></tr>
+    <tr><td>部署</td><td>Docker / Docker Compose</td><td>容器化运行（OneBot模式）</td></tr>
+  </table>
+
+  <h2>三种采集模式对比</h2>
+  <table style="margin-bottom:6mm;">
+    <tr><th>模式</th><th>原理</th><th>QQ窗口要求</th><th>延迟</th><th>推荐场景</th></tr>
+    <tr>
+      <td style="color:#e94560;font-weight:600;">截图+OCR</td>
+      <td>MSS截屏 → PaddleOCR → 文本匹配</td>
+      <td>QQ需可见</td>
+      <td>2-5秒</td>
+      <td>通用场景，兼容性最好</td>
+    </tr>
+    <tr>
+      <td style="color:#e94560;font-weight:600;">UIA后台</td>
+      <td>UI Automation直接提取窗口文本</td>
+      <td>QQ可最小化</td>
+      <td>0.5-2秒</td>
+      <td>后台静默运行</td>
+    </tr>
+    <tr>
+      <td style="color:#e94560;font-weight:600;">OneBot WS</td>
+      <td>对接NapCatQQ WebSocket事件流</td>
+      <td>无需窗口</td>
+      <td>&lt;0.5秒</td>
+      <td>零延迟，最推荐</td>
+    </tr>
+  </table>
+
+  <h2>项目统计</h2>
+  <div class="stats">
+    <div class="stat-card"><div class="stat-num">14</div><div class="stat-label">Git 提交</div></div>
+    <div class="stat-card"><div class="stat-num">3,073</div><div class="stat-label">Python 代码行</div></div>
+    <div class="stat-card"><div class="stat-num">1,118</div><div class="stat-label">前端代码行</div></div>
+    <div class="stat-card"><div class="stat-num">17</div><div class="stat-label">Python 模块</div></div>
+    <div class="stat-card"><div class="stat-num">4</div><div class="stat-label">开发天数</div></div>
+  </div>
+
+  <h2>项目文件结构</h2>
+  <div class="two-col" style="margin-bottom:5mm;">
+    <div style="font-size:7.5pt; line-height:1.7;">
+      <b style="color:var(--accent);">核心后端</b><br>
+      <code>app.py</code> Flask Web 入口<br>
+      <code>monitor.py</code> 监控引擎 (3模式)<br>
+      <code>database.py</code> SQLite + bcrypt<br>
+      <code>detector.py</code> 关键词检测 + 去重<br>
+      <code>ocr_engine.py</code> PaddleOCR 封装<br>
+      <code>onebot_client.py</code> OneBot WS 客户端<br>
+      <code>config.py</code> 配置 + 默认关键词<br>
+      <code>utils.py</code> DPI + 日志
+    </div>
+    <div style="font-size:7.5pt; line-height:1.7;">
+      <b style="color:var(--accent);">前端 & 部署</b><br>
+      <code>templates/</code> 3个HTML页面<br>
+      <code>static/</code> CSS + JS (Chart.js)<br>
+      <code>gui/</code> 桌面托盘程序<br>
+      <code>main.py</code> 桌面GUI入口<br>
+      <code>select_region.py</code> 独立框选工具<br>
+      <code>Dockerfile</code> 容器镜像<br>
+      <code>docker-compose.yml</code> 一键部署
+    </div>
+  </div>
+
+  <h2>关键开发里程碑</h2>
+  <div class="milestones">
+    <div class="milestone"><div class="date">05-16</div><div class="msg">项目初始化 — QQ群消息监控 v1.0 桌面版 (Tkinter GUI)<span>2da9ebc</span></div></div>
+    <div class="milestone"><div class="date">05-17</div><div class="msg">Web版重构 — Flask前端替代Tkinter，框选工具独立化<span>3d38d62</span></div></div>
+    <div class="milestone"><div class="date">05-18</div><div class="msg">核心修复 — 截图前5秒倒计时 + 窗口切换，解决浏览器遮挡<span>9c11b76</span></div></div>
+    <div class="milestone"><div class="date">05-19</div><div class="msg">OneBot集成 + 暗色UI翻新 + bcrypt安全加固 + Docker部署<span>5ece174</span></div></div>
+  </div>
+
+  <h2 style="margin-top:5mm;">安全措施</h2>
+  <table>
+    <tr><th>措施</th><th>实现</th></tr>
+    <tr><td>密码存储</td><td>bcrypt 加盐哈希 (cost factor=12)</td></tr>
+    <tr><td>会话安全</td><td>Flask Session + 环境变量 <code>QQ_MONITOR_SECRET</code> 签名密钥</td></tr>
+    <tr><td>SQL注入防护</td><td>全部使用参数化查询 (SQLite placeholders)</td></tr>
+    <tr><td>登录保护</td><td>用户名≥2字符，密码≥3字符，Session登录态校验</td></tr>
+    <tr><td>部署安全</td><td>Docker容器隔离，推荐Nginx反向代理 + HTTPS</td></tr>
+  </table>
+
+  <div class="footer">
+    <span>QQ群消息监控 — 项目报告</span>
+    <span>第 2 页 / 共 2 页</span>
+  </div>
+</div>
+
+</body>
+</html>

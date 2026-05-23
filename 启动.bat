@@ -1,9 +1,25 @@
 @echo off
-cd /d "%~dp0"
+title QQ-Monitor Web
+cd /d "E:\程序"
+
+set PYCMD=
+if exist "E:\Anaconda\python.exe" set PYCMD=E:\Anaconda\python.exe
+if "%PYCMD%"=="" where python >nul 2>&1 && set PYCMD=python
+if "%PYCMD%"=="" where py >nul 2>&1 && set PYCMD=py
+if "%PYCMD%"=="" (
+    echo [ERROR] Python not found
+    pause
+    exit /b 1
+)
+
 echo.
-echo   QQ群消息监控 - Web版
-echo   正在启动...
+echo   QQ-Monitor Web Server
+echo   http://127.0.0.1:5000
+echo   Close this window to stop
 echo.
+echo Python: %PYCMD%
+echo.
+
 start http://127.0.0.1:5000
-python app.py
+"%PYCMD%" app.py
 pause

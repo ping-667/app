@@ -1,6 +1,7 @@
 import sqlite3
 import os
 import csv
+import hashlib
 import bcrypt
 from pathlib import Path
 from datetime import datetime
@@ -60,29 +61,19 @@ class Database:
                     user_id INTEGER PRIMARY KEY,
                     keywords TEXT DEFAULT '',
                     keyword_mode TEXT DEFAULT 'exact',
-                    region_left INTEGER DEFAULT 0,
-                    region_top INTEGER DEFAULT 0,
-                    region_width INTEGER DEFAULT 800,
-                    region_height INTEGER DEFAULT 600,
                     interval_seconds INTEGER DEFAULT 5,
                     notification_enabled INTEGER DEFAULT 1,
-                    save_screenshots INTEGER DEFAULT 0,
                     group_name TEXT DEFAULT '默认',
-                    capture_mode TEXT DEFAULT 'screenshot',
                     ws_url TEXT DEFAULT 'ws://127.0.0.1:3001'
                 )
             """)
-            # Migration: add new columns if upgrading from older schema
-            for col, col_def in (
-                ("capture_mode", "TEXT DEFAULT 'screenshot'"),
-                ("ws_url", "TEXT DEFAULT 'ws://127.0.0.1:3001'"),
-            ):
-                try:
-                    conn.execute(
-                        f"ALTER TABLE user_config ADD COLUMN {col} {col_def}"
-                    )
-                except Exception:
-                    pass  # column already exists
+            # Migration: add ws_url column if upgrading from older schema
+            try:
+                conn.execute(
+                    "ALTER TABLE user_config ADD COLUMN ws_url TEXT DEFAULT 'ws://127.0.0.1:3001'"
+                )
+            except Exception:
+                pass  # column already exists
 
     # ---- User management ----
 
@@ -109,7 +100,21 @@ class Database:
                 "SELECT id, username, password_hash FROM users WHERE username=?",
                 (username,),
             ).fetchone()
-            if row and bcrypt.checkpw(password.encode(), row["password_hash"].encode()):
+            if not row:
+                return None
+            pw_hash = row["password_hash"]
+            # bcrypt hashes start with "$2"
+            if pw_hash.startswith("$2"):
+                if bcrypt.checkpw(password.encode(), pw_hash.encode()):
+                    return {"id": row["id"], "username": row["username"]}
+                return None
+            # Legacy SHA-256 hash — verify then auto-upgrade to bcrypt
+            if hashlib.sha256(password.encode()).hexdigest() == pw_hash:
+                new_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+                conn.execute(
+                    "UPDATE users SET password_hash=? WHERE id=?",
+                    (new_hash, row["id"]),
+                )
                 return {"id": row["id"], "username": row["username"]}
             return None
 
@@ -131,29 +136,18 @@ class Database:
                 return {
                     'keywords': '',
                     'keyword_mode': 'exact',
-                    'region': {'left': 0, 'top': 0, 'width': 800, 'height': 600},
                     'interval_seconds': 5,
                     'notification_enabled': True,
-                    'save_screenshots': False,
                     'group_name': '默认',
-                    'capture_mode': 'screenshot',
                     'ws_url': 'ws://127.0.0.1:3001',
                 }
             r = dict(row)
             return {
                 'keywords': r.get('keywords', ''),
                 'keyword_mode': r.get('keyword_mode', 'exact'),
-                'region': {
-                    'left': r.get('region_left', 0),
-                    'top': r.get('region_top', 0),
-                    'width': r.get('region_width', 800),
-                    'height': r.get('region_height', 600),
-                },
                 'interval_seconds': r.get('interval_seconds', 5),
                 'notification_enabled': bool(r.get('notification_enabled', 1)),
-                'save_screenshots': bool(r.get('save_screenshots', 0)),
                 'group_name': r.get('group_name', '默认'),
-                'capture_mode': r.get('capture_mode', 'screenshot'),
                 'ws_url': r.get('ws_url', 'ws://127.0.0.1:3001'),
             }
 
@@ -161,24 +155,16 @@ class Database:
         with self._connect() as conn:
             conn.execute("""
                 INSERT OR REPLACE INTO user_config
-                (user_id, keywords, keyword_mode, region_left, region_top,
-                 region_width, region_height, interval_seconds,
-                 notification_enabled, save_screenshots, group_name,
-                 capture_mode, ws_url)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (user_id, keywords, keyword_mode, interval_seconds,
+                 notification_enabled, group_name, ws_url)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
             """, (
                 user_id,
                 data.get('keywords', ''),
                 data.get('keyword_mode', 'exact'),
-                data.get('region', {}).get('left', 0),
-                data.get('region', {}).get('top', 0),
-                data.get('region', {}).get('width', 800),
-                data.get('region', {}).get('height', 600),
                 data.get('interval_seconds', 5),
                 1 if data.get('notification_enabled', True) else 0,
-                1 if data.get('save_screenshots', False) else 0,
                 data.get('group_name', '默认'),
-                data.get('capture_mode', 'screenshot'),
                 data.get('ws_url', 'ws://127.0.0.1:3001'),
             ))
 

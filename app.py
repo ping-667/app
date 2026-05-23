@@ -1,9 +1,5 @@
-import base64
-import io
 import json
 import os
-import queue
-import sys
 import threading
 import logging
 from datetime import datetime
@@ -22,13 +18,11 @@ app.secret_key = os.environ.get("QQ_MONITOR_SECRET", os.urandom(24).hex())
 app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
 
 from database import Database
-from ocr_engine import OCREngine
 from detector import Detector
 from monitor import Monitor
 from config import DEFAULT_KEYWORDS_STR
 
 db = Database()
-ocr = OCREngine()
 
 monitors: dict[int, Monitor] = {}
 monitor_lock = threading.Lock()
@@ -60,12 +54,6 @@ def login_page():
 @login_required
 def index():
     return render_template("index.html")
-
-
-@app.route("/region")
-@login_required
-def region_page():
-    return render_template("region.html")
 
 
 # ---------------------------------------------------------------------------
@@ -119,11 +107,6 @@ def api_logout():
 def api_get_config():
     uid = session["user_id"]
     cfg = db.get_user_config(uid)
-    r = cfg["region"]
-    cfg["has_region"] = any([
-        r["left"] != 0, r["top"] != 0,
-        r["width"] != 800, r["height"] != 600,
-    ])
     return jsonify(cfg)
 
 
@@ -133,15 +116,11 @@ def api_save_config():
     data = request.get_json()
     cfg = db.get_user_config(session["user_id"])
     for key in ("keywords", "keyword_mode", "interval_seconds", "group_name",
-                "notification_enabled", "save_screenshots",
-                "capture_mode", "ws_url"):
+                "notification_enabled", "ws_url"):
         if key in data:
             cfg[key] = data[key]
-    if "region" in data:
-        cfg["region"].update(data["region"])
     db.save_user_config(session["user_id"], cfg)
 
-    # Sync keywords/mode to running monitor if they changed
     if "keywords" in data or "keyword_mode" in data:
         kws = _parse_keywords(cfg)
         mode = cfg.get("keyword_mode", "exact")
@@ -311,7 +290,7 @@ def _get_or_create_monitor(user_id: int) -> Monitor:
             cfg = db.get_user_config(user_id)
             kws = _parse_keywords(cfg)
             detector = Detector(kws, cfg.get("keyword_mode", "exact"))
-            monitors[user_id] = Monitor(None, ocr, detector, db)
+            monitors[user_id] = Monitor(None, detector, db)
         return monitors[user_id]
 
 
@@ -361,51 +340,6 @@ def api_monitor_status():
 # ---------------------------------------------------------------------------
 # Region API
 # ---------------------------------------------------------------------------
-
-def _parse_region(data: dict) -> dict:
-    return {
-        "left": int(data.get("left", 0)),
-        "top": int(data.get("top", 0)),
-        "width": int(data.get("width", 600)),
-        "height": int(data.get("height", 400)),
-    }
-
-
-@app.route("/api/region/preview", methods=["POST"])
-@login_required
-def api_region_preview():
-    import mss
-    from PIL import Image
-
-    data = request.get_json()
-    region = _parse_region(data)
-    try:
-        with mss.MSS() as sct:
-            img = sct.grab(region)
-            pil_img = Image.frombytes("RGB", img.size, img.rgb)
-            buf = io.BytesIO()
-            pil_img.save(buf, format="JPEG", quality=90)
-            b64 = base64.b64encode(buf.getvalue()).decode()
-            return jsonify({
-                "ok": True,
-                "image": f"data:image/jpeg;base64,{b64}",
-                "width": pil_img.width,
-                "height": pil_img.height,
-            })
-    except Exception as e:
-        return jsonify({"ok": False, "error": str(e)})
-
-
-@app.route("/api/region/set", methods=["POST"])
-@login_required
-def api_region_set():
-    data = request.get_json()
-    region = _parse_region(data)
-    cfg = db.get_user_config(session["user_id"])
-    cfg["region"] = region
-    db.save_user_config(session["user_id"], cfg)
-    return jsonify({"ok": True, "region": region})
-
 
 # ---------------------------------------------------------------------------
 # Statistics API
