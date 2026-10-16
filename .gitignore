@@ -1,4 +1,5 @@
 # Bytecode
+backups/
 __pycache__/
 *.pyc
 *.pyo
@@ -37,6 +38,14 @@ NapCatQQ/
 NapCatQQ_OneKey/
 NapCatQQ_OneKey.zip
 QQ.exe
+napcat_framework.zip
+napcat_shell.zip
+
+# Reports & generated artifacts
+project-summary.html
+report_unpacked/
+*.docx
+*.pdf
 
 # Diagnostic / temp scripts
 diag.py

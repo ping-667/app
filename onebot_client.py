@@ -44,21 +44,37 @@ class OneBotClient:
         self._thread = None
         self._msg_queue = queue.Queue()
         self._connected = threading.Event()
+        self._online = threading.Event()
+        self._stop_event = threading.Event()
+        self._ws = None
 
     @property
     def connected(self):
         return self._connected.is_set()
 
+    @property
+    def online(self):
+        return self._online.is_set()
+
     def start(self):
         if self._running.is_set():
             return
         self._running.set()
+        self._stop_event.clear()
         self._thread = threading.Thread(target=self._recv_loop, daemon=True)
         self._thread.start()
         logger.info(f"OneBot 客户端启动, 目标: {self.ws_url}")
 
     def stop(self):
         self._running.clear()
+        self._stop_event.set()
+        self._connected.clear()
+        self._online.clear()
+        if self._ws:
+            try:
+                self._ws.shutdown()
+            except Exception:
+                pass
         if self._thread:
             self._thread.join(timeout=3.0)
         logger.info("OneBot 客户端已停止")
@@ -85,45 +101,69 @@ class OneBotClient:
                     timeout=3,
                     enable_multithread=True,
                 )
+                self._ws = ws
+                if not self._running.is_set():
+                    break
                 self._connected.set()
                 logger.info(f"已连接到 OneBot WS: {self.ws_url}")
                 backoff = 2
+                last_check = 0
+                last_reply = time.monotonic()
 
                 while self._running.is_set():
+                    if time.monotonic() - last_check >= 15:
+                        ws.send(json.dumps({'action': 'get_status', 'echo': 'qqmonitor-status'}))
+                        last_check = time.monotonic()
+                    if time.monotonic() - last_reply > 45:
+                        raise ConnectionError('OneBot 心跳超时')
                     try:
                         raw = ws.recv()
                     except websocket.WebSocketTimeoutException:
                         # Timeout is normal — just means no messages in 3s
                         continue
                     if not raw:
-                        continue
+                        raise ConnectionError('OneBot 连接已关闭')
                     data = json.loads(raw)
+                    if not isinstance(data, dict):
+                        continue
+                    if data.get('echo') == 'qqmonitor-status' or data.get('meta_event_type') == 'heartbeat':
+                        last_reply = time.monotonic()
                     logger.info(f"OneBot 收到原始事件: post_type={data.get('post_type')}, message_type={data.get('message_type')}")
                     parsed = self._parse_event(data)
                     if parsed:
                         self._msg_queue.put(parsed)
 
-            except websocket.WebSocketTimeoutException:
-                continue
             except Exception as e:
-                logger.warning(f"OneBot 异常: {e}")
+                if self._running.is_set():
+                    logger.warning(f"OneBot 异常: {e}")
+            finally:
                 self._connected.clear()
+                self._online.clear()
                 if ws:
                     try:
                         ws.close()
                     except Exception:
                         pass
-                logger.warning(
-                    f"OneBot 连接断开，{backoff}s 后重连..."
-                )
-                time.sleep(backoff)
-                backoff = min(backoff * 2, 60)
+                self._ws = None
+            if self._stop_event.wait(backoff):
+                break
+            backoff = min(backoff * 2, 60)
 
     # ------------------------------------------------------------------
     # Event parser — OneBot 11 → internal message dict
     # ------------------------------------------------------------------
 
     def _parse_event(self, data: dict) -> dict | None:
+        status = None
+        if data.get('echo') == 'qqmonitor-status':
+            status = data.get('data') if data.get('status') == 'ok' else {}
+        elif data.get('meta_event_type') == 'heartbeat':
+            status = data.get('status')
+        if isinstance(status, dict):
+            if status.get('online') is True:
+                self._online.set()
+            else:
+                self._online.clear()
         if data.get("post_type") != "message":
             return None
 

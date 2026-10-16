@@ -7,6 +7,11 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('user-display').textContent = d.username || '';
     });
     loadConfig();
+    fetch('/api/monitor/auto-start', {method: 'POST'})
+        .then(r => r.json()).then(d => {
+            if (!d.ok) document.getElementById('connection-summary').textContent = d.error;
+            pollMonitorStatus();
+        }).catch(() => {});
     loadMessages();
     pollMonitorStatus();
     setInterval(pollMonitorStatus, 3000);
@@ -39,6 +44,7 @@ async function loadConfig() {
     document.getElementById('interval-input').value = c.interval_seconds || 5;
     document.getElementById('group-input').value = c.group_name || '默认';
     document.getElementById('notify-check').checked = c.notification_enabled !== false;
+    document.getElementById('auto-start-check').checked = c.auto_start !== false;
     document.getElementById('ws-url-input').value = c.ws_url || 'ws://127.0.0.1:3001';
 }
 
@@ -47,6 +53,7 @@ async function saveSettings() {
         interval_seconds: parseInt(document.getElementById('interval-input').value) || 5,
         group_name: document.getElementById('group-input').value || '默认',
         notification_enabled: document.getElementById('notify-check').checked,
+        auto_start: document.getElementById('auto-start-check').checked,
         ws_url: document.getElementById('ws-url-input').value || 'ws://127.0.0.1:3001',
     };
     await fetch('/api/config', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(cfg) });
@@ -280,7 +287,7 @@ async function startMonitor() {
     const r = await fetch('/api/monitor/start', { method: 'POST' });
     const d = await r.json();
     if (!d.ok) { alert(d.error); return; }
-    updateMonitorUI(true);
+    pollMonitorStatus();
 }
 
 async function stopMonitor() {
@@ -288,12 +295,13 @@ async function stopMonitor() {
     updateMonitorUI(false);
 }
 
-function updateMonitorUI(running) {
+function updateMonitorUI(running, connected = false, online = false) {
     const status = document.getElementById('monitor-status');
     const btnStart = document.getElementById('btn-start');
     const btnStop = document.getElementById('btn-stop');
     if (running) {
-        status.textContent = '● 运行中';
+        status.textContent = connected && online ? '● 正在监控' :
+            (connected ? '◐ 已连接，等待 QQ 在线' : '◐ 正在连接 NapCat，请检查 QQ 登录');
         status.className = 'monitor-status running';
         btnStart.disabled = true;
         btnStop.disabled = false;
@@ -303,14 +311,17 @@ function updateMonitorUI(running) {
         btnStart.disabled = false;
         btnStop.disabled = true;
     }
+    document.getElementById('connection-summary').textContent = '后台已启动 · ' + status.textContent;
 }
 
 async function pollMonitorStatus() {
     try {
         const r = await fetch('/api/monitor/status');
         const d = await r.json();
-        updateMonitorUI(d.running);
-    } catch (e) { /* ignore */ }
+        updateMonitorUI(d.running, d.connected, d.online);
+    } catch (e) {
+        document.getElementById('connection-summary').textContent = '后台连接中断，请查看启动器';
+    }
 }
 
 // ---- Utils ----

@@ -3,6 +3,7 @@ import os
 import csv
 import hashlib
 import bcrypt
+from contextlib import contextmanager
 from pathlib import Path
 from datetime import datetime
 
@@ -18,12 +19,17 @@ class Database:
         self.db_path = str(db_path)
         self._init_schema()
 
+    @contextmanager
     def _connect(self):
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA foreign_keys=ON")
-        return conn
+        try:
+            with conn:
+                yield conn
+        finally:
+            conn.close()
 
     def _init_schema(self):
         with self._connect() as conn:
@@ -74,6 +80,10 @@ class Database:
                 )
             except Exception:
                 pass  # column already exists
+
+            columns = {r['name'] for r in conn.execute('PRAGMA table_info(user_config)')}
+            if 'auto_start' not in columns:
+                conn.execute('ALTER TABLE user_config ADD COLUMN auto_start INTEGER DEFAULT 1')
 
     # ---- User management ----
 
@@ -135,6 +145,7 @@ class Database:
             if not row:
                 return {
                     'keywords': '',
+                    'auto_start': True,
                     'keyword_mode': 'exact',
                     'interval_seconds': 5,
                     'notification_enabled': True,
@@ -144,6 +155,7 @@ class Database:
             r = dict(row)
             return {
                 'keywords': r.get('keywords', ''),
+                'auto_start': bool(r.get('auto_start', 1)),
                 'keyword_mode': r.get('keyword_mode', 'exact'),
                 'interval_seconds': r.get('interval_seconds', 5),
                 'notification_enabled': bool(r.get('notification_enabled', 1)),
@@ -156,8 +168,8 @@ class Database:
             conn.execute("""
                 INSERT OR REPLACE INTO user_config
                 (user_id, keywords, keyword_mode, interval_seconds,
-                 notification_enabled, group_name, ws_url)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                 notification_enabled, group_name, ws_url, auto_start)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 user_id,
                 data.get('keywords', ''),
@@ -166,6 +178,7 @@ class Database:
                 1 if data.get('notification_enabled', True) else 0,
                 data.get('group_name', '默认'),
                 data.get('ws_url', 'ws://127.0.0.1:3001'),
+                1 if data.get('auto_start', True) else 0,
             ))
 
     # ---- Messages ----

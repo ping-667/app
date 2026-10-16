@@ -16,6 +16,7 @@
         </div>
     </header>
 
+    <div id="connection-summary" role="status" aria-live="polite" style="padding:12px 24px;color:var(--text-dim)">正在检查服务状态…</div>
     <div class="tabs">
         <button class="tab active" onclick="switchMainTab('history', this)">消息记录</button>
         <button class="tab" onclick="switchMainTab('keywords', this)">关键词管理</button>
@@ -97,6 +98,8 @@
                 <h3>选项</h3>
                 <div class="setting-item">
                     <label><input type="checkbox" id="notify-check" onchange="saveSettings()" checked> 启用桌面通知</label>
+                    <label><input type="checkbox" id="auto-start-check" onchange="saveSettings()" checked> 登录后自动开始监控</label>
+                    <span style="color:#888;font-size:12px">手动停止后，本次后台运行期间不会因刷新页面重新开启。</span>
                 </div>
             </div>
 

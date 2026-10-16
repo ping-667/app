@@ -1,25 +1,31 @@
 @echo off
-title QQ-Monitor Web
-cd /d "E:\程序"
-
-set PYCMD=
-if exist "E:\Anaconda\python.exe" set PYCMD=E:\Anaconda\python.exe
-if "%PYCMD%"=="" where python >nul 2>&1 && set PYCMD=python
-if "%PYCMD%"=="" where py >nul 2>&1 && set PYCMD=py
-if "%PYCMD%"=="" (
-    echo [ERROR] Python not found
+chcp 65001 >nul
+cd /d "%~dp0"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0ensure_napcat.ps1"
+if errorlevel 1 (
     pause
     exit /b 1
 )
-
-echo.
-echo   QQ-Monitor Web Server
-echo   http://127.0.0.1:5000
-echo   Close this window to stop
-echo.
-echo Python: %PYCMD%
-echo.
-
-start http://127.0.0.1:5000
-"%PYCMD%" app.py
+if exist "%~dp0.venv\Scripts\pythonw.exe" (
+    start "" "%~dp0.venv\Scripts\pythonw.exe" "%~dp0launcher.py"
+    exit /b
+)
+where pythonw >nul 2>&1
+if not errorlevel 1 (
+    start "" pythonw "%~dp0launcher.py"
+    exit /b
+)
+where pyw >nul 2>&1
+if not errorlevel 1 (
+    start "" pyw -3 "%~dp0launcher.py"
+    exit /b
+)
+where python >nul 2>&1
+if not errorlevel 1 (
+    python "%~dp0launcher.py"
+    exit /b
+)
+echo 未找到 Python。请安装 Python 3.9 或更新版本，并勾选 Add Python to PATH。
+echo 安装后先运行“初始化环境.bat”，再双击本文件。
 pause
+

@@ -2,7 +2,7 @@ import json
 import os
 import threading
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import wraps
 from pathlib import Path
 
@@ -14,7 +14,10 @@ set_dpi_aware()
 logger = setup_logging("webapp")
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("QQ_MONITOR_SECRET", os.urandom(24).hex())
+from runtime_support import load_secret
+app.secret_key = load_secret()
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
 
 from database import Database
@@ -25,7 +28,7 @@ from config import DEFAULT_KEYWORDS_STR
 db = Database()
 
 monitors: dict[int, Monitor] = {}
-monitor_lock = threading.Lock()
+monitor_lock = threading.RLock()
 
 
 # ---------------------------------------------------------------------------
@@ -50,6 +53,11 @@ def login_page():
     return render_template("login.html")
 
 
+@app.route('/api/health')
+def health():
+    return jsonify({'service': 'qqmonitor', 'version': '1.0', 'ok': True})
+
+
 @app.route("/")
 @login_required
 def index():
@@ -69,6 +77,7 @@ def api_login():
         return jsonify({"ok": False, "error": "用户名和密码不能为空"})
     user = db.verify_user(username, password)
     if user:
+        session.permanent = True
         session["user_id"] = user["id"]
         session["username"] = user["username"]
         return jsonify({"ok": True, "username": user["username"]})
@@ -86,6 +95,7 @@ def api_register():
         return jsonify({"ok": False, "error": "密码至少3个字符"})
     user_id = db.create_user(username, password)
     if user_id:
+        session.permanent = True
         session["user_id"] = user_id
         session["username"] = username
         return jsonify({"ok": True, "username": username})
@@ -116,7 +126,7 @@ def api_save_config():
     data = request.get_json()
     cfg = db.get_user_config(session["user_id"])
     for key in ("keywords", "keyword_mode", "interval_seconds", "group_name",
-                "notification_enabled", "ws_url"):
+                "notification_enabled", "ws_url", "auto_start"):
         if key in data:
             cfg[key] = data[key]
     db.save_user_config(session["user_id"], cfg)
@@ -294,6 +304,19 @@ def _get_or_create_monitor(user_id: int) -> Monitor:
         return monitors[user_id]
 
 
+@app.route('/api/monitor/auto-start', methods=['POST'])
+@login_required
+def api_monitor_auto_start():
+    uid = session['user_id']
+    if not db.get_user_config(uid).get('auto_start', True):
+        return jsonify({'ok': True, 'skipped': True})
+    # A manually stopped monitor remains stopped across reloads and tabs.
+    with monitor_lock:
+        if uid in monitors:
+            return jsonify({'ok': True, 'skipped': True})
+        return api_monitor_start()
+
+
 @app.route("/api/monitor/start", methods=["POST"])
 @login_required
 def api_monitor_start():
@@ -332,7 +355,7 @@ def api_monitor_status():
             st["running"] = monitors[uid].running
             return jsonify(st)
     return jsonify({
-        "running": False, "captures": 0,
+        "running": False, "connected": False, "online": False, "captures": 0,
         "detections": 0, "last_capture": None,
     })
 
@@ -384,4 +407,5 @@ if __name__ == "__main__":
     logger.info("Web 应用启动中...")
     print("\n  QQ群消息监控 — Web版")
     print("  浏览器打开: http://127.0.0.1:5000\n")
-    app.run(host="0.0.0.0", port=5000, debug=False, threaded=True)
+    app.run(host=os.environ.get('QQ_MONITOR_HOST', '0.0.0.0'),
+            port=int(os.environ.get('QQ_MONITOR_PORT', '5000')), debug=False, threaded=True)

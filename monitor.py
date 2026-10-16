@@ -19,6 +19,8 @@ class Monitor:
         self.user_id = 0
         self._running = threading.Event()
         self._thread = None
+        self._client = None
+        self._state_lock = threading.Lock()
         self._result_queue = queue.Queue()
         self._capture_count = 0
         self._detection_count = 0
@@ -33,23 +35,28 @@ class Monitor:
         return self._running.is_set()
 
     def start(self):
-        if self._running.is_set():
-            return
-        self._running.set()
-        self._thread = threading.Thread(target=self._loop, daemon=True)
-        self._thread.start()
+        with self._state_lock:
+            if self._running.is_set() or (self._thread and self._thread.is_alive()):
+                return
+            self._running.set()
+            self._thread = threading.Thread(target=self._run, daemon=True)
+            self._thread.start()
         logger.info("监控已启动")
 
     def stop(self):
         if not self._running.is_set():
             return
         self._running.clear()
+        if self._client:
+            self._client.stop()
         if self._thread:
             self._thread.join(timeout=3.0)
         logger.info("监控已停止")
 
     def get_status(self):
         return {
+            'connected': bool(self.running and self._client and self._client.connected),
+            'online': bool(self.running and self._client and self._client.online),
             "running": self._running.is_set(),
             "captures": self._capture_count,
             "detections": self._detection_count,
@@ -60,6 +67,16 @@ class Monitor:
     # Main loop — delegates to OneBot event-driven loop
     # ------------------------------------------------------------------
 
+    def _run(self):
+        try:
+            self._loop()
+        except Exception:
+            logger.exception('监控发生错误')
+        finally:
+            if self._client:
+                self._client.stop()
+            self._running.clear()
+
     def _loop(self):
         interval = self.config.get("interval_seconds", 5)
         group_name = self.config.get("group_name", "默认")
@@ -67,6 +84,7 @@ class Monitor:
         from onebot_client import OneBotClient
 
         client = OneBotClient(ws_url, group_name=group_name)
+        self._client = client
         client.start()
         logger.info(f"OneBot 监控启动 (ws_url={ws_url}, group={group_name})")
 
